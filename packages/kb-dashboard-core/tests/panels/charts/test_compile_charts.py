@@ -919,6 +919,71 @@ class TestCompileESQLChartState:
             assert layer_id in layers
             assert state.adHocDataViews == {}
 
+    @pytest.mark.parametrize(
+        ('chart_config', 'value_label'),
+        [
+            (
+                {
+                    'type': 'gauge',
+                    'query': 'FROM logs-* | STATS avg_cpu = AVG(system.cpu.total.pct)',
+                    'metric': {'field': 'avg_cpu', 'id': 'metric1'},
+                    'minimum': 0,
+                },
+                'minimum',
+            ),
+            (
+                {
+                    'type': 'gauge',
+                    'query': 'FROM logs-* | STATS avg_cpu = AVG(system.cpu.total.pct)',
+                    'metric': {'field': 'avg_cpu', 'id': 'metric1'},
+                    'maximum': 100,
+                },
+                'maximum',
+            ),
+            (
+                {
+                    'type': 'gauge',
+                    'query': 'FROM logs-* | STATS avg_cpu = AVG(system.cpu.total.pct)',
+                    'metric': {'field': 'avg_cpu', 'id': 'metric1'},
+                    'goal': 80,
+                },
+                'goal',
+            ),
+            (
+                {
+                    'type': 'metric',
+                    'query': 'FROM logs-* | STATS avg_cpu = AVG(system.cpu.total.pct)',
+                    'primary': 42,
+                },
+                'primary',
+            ),
+            (
+                {
+                    'type': 'pie',
+                    'query': 'FROM logs-* | STATS count_by_status = COUNT(*) BY status',
+                    'dimensions': [{'field': 'status', 'id': 'dim1'}],
+                    'metrics': [10],
+                },
+                r'metrics\.0',
+            ),
+            (
+                {
+                    'type': 'bar',
+                    'query': 'FROM logs-* | STATS event_count = COUNT(*) BY status',
+                    'dimension': {'field': 'status', 'id': 'dim1'},
+                    'metrics': [5],
+                },
+                r'metrics\.0',
+            ),
+        ],
+    )
+    def test_esql_static_values_are_rejected(self, chart_config: dict[str, Any], value_label: str) -> None:
+        """Test that ESQL charts reject static numeric metrics and thresholds."""
+        from kb_dashboard_core.panels.charts.config import ESQLPanel
+
+        with pytest.raises(ValueError, match=value_label):
+            _ = ESQLPanel.model_validate({'position': {'x': 0, 'y': 0}, 'size': {'w': 24, 'h': 15}, 'esql': chart_config})
+
 
 class TestESQLDataTypeDate:
     """Tests for ES|QL dimension data_type: date feature.
@@ -956,9 +1021,9 @@ class TestESQLDataTypeDate:
 
         # Verify meta fields are set correctly
         assert hasattr(dim_column, 'meta')
-        assert dim_column.meta is not None  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
-        assert dim_column.meta.type == 'date'  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
-        assert dim_column.meta.esType == 'date'  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
+        assert dim_column.meta is not None
+        assert dim_column.meta.type == 'date'
+        assert dim_column.meta.esType == 'date'
 
     def test_dimension_without_data_type_has_no_meta(self) -> None:
         """Test that dimension without data_type does not have meta field."""
@@ -989,7 +1054,7 @@ class TestESQLDataTypeDate:
 
         # Verify meta field is None
         assert hasattr(dim_column, 'meta')
-        assert dim_column.meta is None  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
+        assert dim_column.meta is None
 
     def test_breakdown_dimension_with_data_type_date(self) -> None:
         """Test that breakdown dimension with data_type: 'date' works correctly."""
@@ -1021,9 +1086,9 @@ class TestESQLDataTypeDate:
 
         # Verify meta fields are set correctly
         assert hasattr(breakdown_column, 'meta')
-        assert breakdown_column.meta is not None  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
-        assert breakdown_column.meta.type == 'date'  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
-        assert breakdown_column.meta.esType == 'date'  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
+        assert breakdown_column.meta is not None
+        assert breakdown_column.meta.type == 'date'
+        assert breakdown_column.meta.esType == 'date'
 
     def test_pie_chart_with_date_dimension(self) -> None:
         """Test that pie chart with date dimension correctly sets meta fields."""
@@ -1052,8 +1117,8 @@ class TestESQLDataTypeDate:
         assert dim_column is not None
 
         assert hasattr(dim_column, 'meta')
-        assert dim_column.meta is not None  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
-        assert dim_column.meta.type == 'date'  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
+        assert dim_column.meta is not None
+        assert dim_column.meta.type == 'date'
 
     def test_heatmap_x_axis_with_data_type_date(self) -> None:
         """Test that heatmap x_axis with data_type: 'date' correctly sets meta fields."""
@@ -1083,8 +1148,8 @@ class TestESQLDataTypeDate:
         assert x_axis_column is not None
 
         assert hasattr(x_axis_column, 'meta')
-        assert x_axis_column.meta is not None  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
-        assert x_axis_column.meta.type == 'date'  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
+        assert x_axis_column.meta is not None
+        assert x_axis_column.meta.type == 'date'
 
 
 class TestCompileChartsPanelConfig:
