@@ -134,6 +134,9 @@ class AxisConfig(BaseCfgModel):
     title: str | None = Field(default=None)
     """Custom title for the axis."""
 
+    show_title: bool = Field(default=True)
+    """Whether axis title should be shown when a title is provided."""
+
     scale: Literal['linear', 'log', 'sqrt', 'time'] | None = Field(default=None)
     """Scale type for the axis. Defaults to 'linear'."""
 

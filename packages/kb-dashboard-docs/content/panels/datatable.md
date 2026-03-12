@@ -56,6 +56,32 @@ When details matter, datatable never fails!
       show_root_heading: false
       heading_level: 3
 
+## One-Click Filter
+
+Set `one_click_filter: true` on a column to enable Kibana's one-click filtering interaction for that column.
+
+```yaml
+dashboards:
+  - name: "Datatable With One-Click Filter"
+    panels:
+      - title: "Top Services"
+        size: {w: 24, h: 15}
+        lens:
+          type: datatable
+          data_view: "logs-*"
+          dimensions:
+            - id: "service"
+              field: "service.name"
+              type: values
+          columns:
+            - column_id: "service"
+              one_click_filter: true
+          metrics:
+            - id: "request-count"
+              aggregation: count
+              label: "Request Count"
+```
+
 ## Datatable Appearance
 
 ::: kb_dashboard_core.panels.charts.datatable.config.DatatableAppearance

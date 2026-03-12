@@ -912,7 +912,7 @@ async def test_dual_axis_chart() -> None:
     assert kbn_state_visualization.axisTitlesVisibilitySettings is not None
     assert kbn_state_visualization.axisTitlesVisibilitySettings.yLeft is True
     assert kbn_state_visualization.axisTitlesVisibilitySettings.yRight is True
-    assert kbn_state_visualization.axisTitlesVisibilitySettings.x is False
+    assert kbn_state_visualization.axisTitlesVisibilitySettings.x is True
 
 
 async def test_styled_series_chart() -> None:
@@ -992,7 +992,45 @@ async def test_axis_extent_configuration() -> None:
     assert kbn_state_visualization.axisTitlesVisibilitySettings is not None
     assert kbn_state_visualization.axisTitlesVisibilitySettings.x is True
     assert kbn_state_visualization.axisTitlesVisibilitySettings.yLeft is True
-    assert kbn_state_visualization.axisTitlesVisibilitySettings.yRight is False
+    assert kbn_state_visualization.axisTitlesVisibilitySettings.yRight is True
+
+
+async def test_axis_title_visibility_respects_show_title_flag() -> None:
+    """Test show_title controls axis title visibility independently of title value."""
+    lens_config = {
+        'type': 'line',
+        'data_view': 'metrics-*',
+        'dimension': {'type': 'date_histogram', 'field': '@timestamp', 'id': 'dim1'},
+        'metrics': [{'aggregation': 'count', 'id': 'metric1'}],
+        'appearance': {
+            'x_axis': {'title': 'Time', 'show_title': False},
+            'y_left_axis': {'title': 'Count'},
+        },
+    }
+    lens_chart = LensLineChart.model_validate(lens_config)
+    _layer_id, _kbn_columns, kbn_state_visualization = compile_lens_xy_chart(lens_xy_chart=lens_chart)
+
+    assert kbn_state_visualization.axisTitlesVisibilitySettings is not None
+    assert kbn_state_visualization.axisTitlesVisibilitySettings.x is False
+    assert kbn_state_visualization.axisTitlesVisibilitySettings.yLeft is True
+
+
+async def test_axis_title_visibility_default_behavior_when_show_title_omitted() -> None:
+    """Test omitted show_title preserves legacy title-based visibility behavior."""
+    lens_config = {
+        'type': 'line',
+        'data_view': 'metrics-*',
+        'dimension': {'type': 'date_histogram', 'field': '@timestamp', 'id': 'dim1'},
+        'metrics': [{'aggregation': 'count', 'id': 'metric1'}],
+        'appearance': {
+            'x_axis': {'title': 'Time'},
+        },
+    }
+    lens_chart = LensLineChart.model_validate(lens_config)
+    _layer_id, _kbn_columns, kbn_state_visualization = compile_lens_xy_chart(lens_xy_chart=lens_chart)
+
+    assert kbn_state_visualization.axisTitlesVisibilitySettings is not None
+    assert kbn_state_visualization.axisTitlesVisibilitySettings.x is True
 
 
 async def test_line_chart_with_fitting_function() -> None:

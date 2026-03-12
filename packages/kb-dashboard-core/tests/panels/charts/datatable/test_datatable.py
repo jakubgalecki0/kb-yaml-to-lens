@@ -139,6 +139,53 @@ def test_compile_datatable_chart_with_metric_column_config_lens() -> None:
     )
 
 
+def test_compile_datatable_chart_with_one_click_filter_enabled() -> None:
+    """Test one_click_filter compiles to oneClickFilter when set to true."""
+    config = {
+        'type': 'datatable',
+        'data_view': 'metrics-*',
+        'metrics': [
+            {
+                'field': 'aerospike.namespace.name',
+                'id': 'metric-col-id',
+                'aggregation': 'count',
+            }
+        ],
+        'metric_columns': [
+            {
+                'column_id': 'metric-col-id',
+                'one_click_filter': True,
+            }
+        ],
+    }
+
+    result = compile_datatable_chart_snapshot(config, 'lens')
+    assert result['columns'][0]['oneClickFilter'] is True
+
+
+def test_compile_datatable_chart_with_one_click_filter_default_omitted() -> None:
+    """Test one_click_filter is omitted when not explicitly enabled."""
+    config = {
+        'type': 'datatable',
+        'data_view': 'metrics-*',
+        'metrics': [
+            {
+                'field': 'aerospike.namespace.name',
+                'id': 'metric-col-id',
+                'aggregation': 'count',
+            }
+        ],
+        'metric_columns': [
+            {
+                'column_id': 'metric-col-id',
+            }
+        ],
+    }
+
+    result = compile_datatable_chart_snapshot(config, 'lens')
+    assert 'oneClickFilter' not in result['columns'][0]
+
+
 def test_compile_datatable_chart_with_sorting_and_paging_lens() -> None:
     """Test the compilation of a datatable chart with sorting and pagination (Lens)."""
     config = {

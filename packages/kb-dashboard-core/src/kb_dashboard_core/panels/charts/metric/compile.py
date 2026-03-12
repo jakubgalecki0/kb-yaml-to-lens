@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from kb_dashboard_core.panels.charts.esql.columns.compile import compile_esql_dimension, compile_esql_metric
 
@@ -32,6 +32,7 @@ def compile_metric_chart_visualization_state(
     primary_metric_id: str,
     secondary_metric_id: str | None,
     breakdown_dimension_id: str | None,
+    color_mode: Literal['none', 'labels', 'background'] | None,
 ) -> KbnMetricVisualizationState:
     """Compile a LensMetricChart config object into a Kibana Lens Metric visualization state.
 
@@ -40,6 +41,7 @@ def compile_metric_chart_visualization_state(
         primary_metric_id (str): The ID of the primary metric.
         secondary_metric_id (str | None): The ID of the secondary metric.
         breakdown_dimension_id (str | None): The ID of the breakdown dimension.
+        color_mode (Literal['none', 'labels', 'background'] | None): The metric color mode in Kibana.
 
     Returns:
         KbnMetricVisualizationState: The compiled visualization state.
@@ -52,6 +54,7 @@ def compile_metric_chart_visualization_state(
         secondaryLabelPosition='before',
         secondaryMetricAccessor=secondary_metric_id,
         breakdownByAccessor=breakdown_dimension_id,
+        colorMode=color_mode,
     )
 
 
@@ -112,6 +115,7 @@ def compile_lens_metric_chart(
             primary_metric_id=primary_metric_id,
             secondary_metric_id=secondary_metric_id,
             breakdown_dimension_id=breakdown_dimension_id,
+            color_mode=lens_metric_chart.color_mode,
         ),
     )
 
@@ -164,5 +168,6 @@ def compile_esql_metric_chart(
             showBar=False,
             secondaryMetricAccessor=secondary_metric_id,
             breakdownByAccessor=breakdown_dimension_id,
+            colorMode=esql_metric_chart.color_mode,
         ),
     )

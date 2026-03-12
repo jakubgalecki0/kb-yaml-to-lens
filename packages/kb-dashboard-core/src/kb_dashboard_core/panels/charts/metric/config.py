@@ -59,6 +59,9 @@ class LensMetricChart(BaseChart):
     color: ColorMapping | None = Field(default=None)
     """Formatting options for the chart color palette."""
 
+    color_mode: Literal['none', 'labels', 'background'] | None = Field(default=None)
+    """Color mode for metric value rendering."""
+
 
 class ESQLMetricChart(BaseChart):
     """Represents a Metric chart configuration within an ESQL panel.
@@ -104,3 +107,6 @@ class ESQLMetricChart(BaseChart):
 
     color: ColorMapping | None = Field(default=None)
     """Formatting options for the chart color palette."""
+
+    color_mode: Literal['none', 'labels', 'background'] | None = Field(default=None)
+    """Color mode for metric value rendering."""

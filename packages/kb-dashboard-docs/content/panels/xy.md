@@ -90,6 +90,34 @@ That show exactly where things are.
 
 Customize axis titles, bounds, and scale types to better represent your data:
 
+#### Hide Axis Titles
+
+Use `show_title: false` to hide an axis title even when a `title` is configured:
+
+```yaml
+dashboards:
+  - name: "Hidden Axis Title"
+    panels:
+      - title: "Request Latency Over Time"
+        size: {w: 24, h: 15}
+        lens:
+          type: line
+          data_view: "logs-*"
+          dimension:
+            field: "@timestamp"
+            type: date_histogram
+          metrics:
+            - aggregation: average
+              field: "response.time"
+              label: "Avg Latency"
+          appearance:
+            x_axis:
+              title: "Time (UTC)"
+              show_title: false
+            y_left_axis:
+              title: "Response Time (ms)"
+```
+
 #### Custom Axis Titles
 
 ```yaml

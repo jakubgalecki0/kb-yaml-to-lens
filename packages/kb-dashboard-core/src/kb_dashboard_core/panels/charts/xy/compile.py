@@ -66,23 +66,24 @@ def _convert_axis_extent(extent: AxisExtent) -> AxisExtentConfig:
 
 def _extract_axis_config(
     axis_config: AxisConfig | None,
-) -> tuple[str | None, Literal['linear', 'log', 'sqrt', 'time'] | None, AxisExtentConfig | None]:
-    """Extract axis configuration (title, scale, extent) from an AxisConfig.
+) -> tuple[str | None, bool, Literal['linear', 'log', 'sqrt', 'time'] | None, AxisExtentConfig | None]:
+    """Extract axis configuration (title, show_title, scale, extent) from an AxisConfig.
 
     Args:
         axis_config: The axis configuration object (or None).
 
     Returns:
-        Tuple of (title, scale, extent) where each can be None.
+        Tuple of (title, show_title, scale, extent) where title/scale/extent can be None.
     """
     if axis_config is None:
-        return None, None, None
+        return None, True, None, None
 
     title = axis_config.title
+    show_title = axis_config.show_title
     scale = axis_config.scale
     extent = _convert_axis_extent(axis_config.extent) if axis_config.extent is not None else None
 
-    return title, scale, extent
+    return title, show_title, scale, extent
 
 
 def compile_lens_reference_line_layer(
@@ -402,9 +403,12 @@ def compile_xy_chart_visualization_state(
 
     # Build axis configuration from appearance settings
     x_title = None
+    x_show_title = True
     x_scale = None
     y_left_title = None
+    y_left_show_title = True
     y_right_title = None
+    y_right_show_title = True
     y_left_scale = None
     y_right_scale = None
     y_left_extent = None
@@ -412,17 +416,24 @@ def compile_xy_chart_visualization_state(
     x_extent = None
 
     if chart.appearance is not None:
-        x_title, x_scale, x_extent = _extract_axis_config(chart.appearance.x_axis)
-        y_left_title, y_left_scale, y_left_extent = _extract_axis_config(chart.appearance.y_left_axis)
-        y_right_title, y_right_scale, y_right_extent = _extract_axis_config(chart.appearance.y_right_axis)
+        x_title, x_show_title, x_scale, x_extent = _extract_axis_config(chart.appearance.x_axis)
+        y_left_title, y_left_show_title, y_left_scale, y_left_extent = _extract_axis_config(chart.appearance.y_left_axis)
+        y_right_title, y_right_show_title, y_right_scale, y_right_extent = _extract_axis_config(chart.appearance.y_right_axis)
 
-    # Build axisTitlesVisibilitySettings if any titles are set
+    # Build axisTitlesVisibilitySettings if any titles are set or visibility is explicitly disabled
     axis_titles_visibility = None
-    if x_title is not None or y_left_title is not None or y_right_title is not None:
+    if (
+        x_title is not None
+        or y_left_title is not None
+        or y_right_title is not None
+        or x_show_title is False
+        or y_left_show_title is False
+        or y_right_show_title is False
+    ):
         axis_titles_visibility = AxisTitlesVisibilitySettings(
-            x=x_title is not None,
-            yLeft=y_left_title is not None,
-            yRight=y_right_title is not None,
+            x=x_show_title,
+            yLeft=y_left_show_title,
+            yRight=y_right_show_title,
         )
 
     kbn_layer_visualization = XYDataLayerConfig(

@@ -132,6 +132,7 @@ def _build_datatable_column_states(
             hidden=user_config.hidden if user_config is not None and user_config.hidden is True else None,
             isTransposed=False,
             isMetric=is_metric,
+            oneClickFilter=user_config.one_click_filter if user_config is not None and user_config.one_click_filter is True else None,
             alignment=user_config.alignment if user_config is not None else None,
             colorMode=user_config.color_mode if user_config is not None else None,
             summaryRow=summary_row,

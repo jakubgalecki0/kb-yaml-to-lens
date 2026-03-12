@@ -8,6 +8,7 @@ Fixture Examples:
 
 from typing import TYPE_CHECKING, Any
 
+import pytest
 from dirty_equals import IsStr, IsUUID
 from inline_snapshot import snapshot
 
@@ -362,6 +363,59 @@ def test_compile_metric_chart_column_order_with_breakdown_primary_only() -> None
         '17fe5b4b-d36c-4fbd-ace9-58d143bb3172',  # breakdown dimension FIRST
         '156e3e91-7bb6-406f-8ae5-cb409747953b',  # primary metric
     ]
+
+
+@pytest.mark.parametrize('chart_type', ['lens', 'esql'])
+@pytest.mark.parametrize('color_mode', ['labels', 'background', 'none'])
+def test_compile_metric_chart_color_mode(chart_type: str, color_mode: str) -> None:
+    """Test metric color_mode compilation for Lens and ES|QL charts."""
+    if chart_type == 'lens':
+        config = {
+            'type': 'metric',
+            'data_view': 'metrics-*',
+            'primary': {
+                'aggregation': 'count',
+                'id': 'primary-metric',
+            },
+            'color_mode': color_mode,
+        }
+    else:
+        config = {
+            'type': 'metric',
+            'primary': {
+                'field': 'count(*)',
+                'id': 'primary-metric',
+            },
+            'color_mode': color_mode,
+        }
+
+    result = compile_metric_chart_snapshot(config, chart_type)
+    assert result['colorMode'] == color_mode
+
+
+@pytest.mark.parametrize('chart_type', ['lens', 'esql'])
+def test_compile_metric_chart_color_mode_omitted(chart_type: str) -> None:
+    """Test metric color_mode default omission for Lens and ES|QL charts."""
+    if chart_type == 'lens':
+        config = {
+            'type': 'metric',
+            'data_view': 'metrics-*',
+            'primary': {
+                'aggregation': 'count',
+                'id': 'primary-metric',
+            },
+        }
+    else:
+        config = {
+            'type': 'metric',
+            'primary': {
+                'field': 'count(*)',
+                'id': 'primary-metric',
+            },
+        }
+
+    result = compile_metric_chart_snapshot(config, chart_type)
+    assert 'colorMode' not in result
 
 
 def test_metric_chart_dashboard_references_bubble_up() -> None:

@@ -68,6 +68,9 @@ class DatatableColumnConfig(BaseCfgModel):
     hidden: bool = Field(default=False)
     """Whether to hide this column."""
 
+    one_click_filter: bool = Field(default=False)
+    """Enable one-click filtering for this column."""
+
     alignment: DatatableAlignmentEnum | None = Field(default=None, strict=False)
     """Text alignment for the column."""
 
