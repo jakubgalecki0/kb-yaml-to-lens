@@ -65,6 +65,7 @@ help:
     @echo ""
     @echo "=== Release ==="
     @echo ""
+    @echo "  release-prep       - Open GitHub issues for pre-release review tasks"
     @echo "  release-tag        - Create and push git tag from pyproject.toml version"
     @echo ""
     @echo "=== Git Helpers ==="
@@ -163,6 +164,10 @@ bump-major:
 
 bump-version-show:
     uv run scripts/bump-version.py show
+
+# Open GitHub issues for pre-release review (docs, dry run, code quality, tests, release notes)
+release-prep version="":
+    bash scripts/release-prep.sh {{version}}
 
 # Release
 release-tag:
