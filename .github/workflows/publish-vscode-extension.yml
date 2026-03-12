@@ -10,22 +10,24 @@ jobs:
       matrix:
         include:
           - platform: linux-x64
-            make_target: package-linux
+            just_target: package-linux
           - platform: darwin-x64
-            make_target: package-macos-x64
+            just_target: package-macos-x64
           - platform: darwin-arm64
-            make_target: package-macos-arm64
+            just_target: package-macos-arm64
           - platform: win32-x64
-            make_target: package-windows
+            just_target: package-windows
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+      - name: Setup just
+        uses: extractions/setup-just@v2
       - name: Setup Node.js Environment
         uses: ./.github/actions/setup-node-env
       - name: Build ${{ matrix.platform }} package
         shell: bash
-        run: make vscode ${{ matrix.make_target }}
+        run: just vscode ${{ matrix.just_target }}
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v6
         with:
