@@ -215,7 +215,6 @@ def test_compile_gauge_chart_with_all_options_lens() -> None:
             'ticks_position': 'auto',
             'label_major': 'CPU Usage',
             'label_minor': 'Percentage',
-            'color_mode': 'palette',
         },
     }
 
@@ -231,7 +230,68 @@ def test_compile_gauge_chart_with_all_options_lens() -> None:
             'labelMajor': 'CPU Usage',
             'labelMinor': 'Percentage',
             'labelMajorMode': 'custom',
+        }
+    )
+
+
+def test_compile_gauge_chart_with_range_palette() -> None:
+    """Test the compilation of a gauge chart with range-based palette stops."""
+    config = {
+        'type': 'gauge',
+        'data_view': 'metrics-*',
+        'metric': {
+            'field': 'system.cpu.total.pct',
+            'id': 'metric_accessor',
+            'aggregation': 'average',
+        },
+        'appearance': {
+            'palette': {
+                'range_type': 'percent',
+                'stops': [
+                    {'stop': 0, 'color': '#00BF6F'},
+                    {'stop': 80, 'color': '#FFA500'},
+                    {'stop': 95, 'color': '#BD271E'},
+                ],
+            },
+        },
+    }
+
+    result = compile_gauge_chart_snapshot(config, 'lens')
+
+    assert result == snapshot(
+        {
+            'layerId': IsUUID,
+            'layerType': 'data',
+            'metricAccessor': 'metric_accessor',
+            'shape': 'arc',
+            'ticksPosition': 'auto',
+            'labelMajorMode': 'auto',
             'colorMode': 'palette',
+            'palette': {
+                'name': 'custom',
+                'type': 'palette',
+                'params': {
+                    'steps': 3,
+                    'name': 'custom',
+                    'reverse': False,
+                    'rangeType': 'percent',
+                    'rangeMin': 0.0,
+                    'rangeMax': None,
+                    'progression': 'fixed',
+                    'stops': [
+                        {'color': '#00BF6F', 'stop': 80.0},
+                        {'color': '#FFA500', 'stop': 95.0},
+                        {'color': '#BD271E', 'stop': 100.0},
+                    ],
+                    'colorStops': [
+                        {'color': '#00BF6F', 'stop': 0.0},
+                        {'color': '#FFA500', 'stop': 80.0},
+                        {'color': '#BD271E', 'stop': 95.0},
+                    ],
+                    'continuity': 'above',
+                    'maxSteps': 3,
+                },
+            },
         }
     )
 
