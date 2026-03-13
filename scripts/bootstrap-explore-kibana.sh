@@ -44,32 +44,6 @@ for i in $(seq 1 90); do
   sleep 2
 done
 
-cat <<'EOF' > /tmp/explore-seed.ndjson
-{"create":{"_index":"logs-default-generic"}}
-{"@timestamp":"2026-03-12T00:00:00Z","service":{"name":"api"},"host":{"name":"host-a"},"event":{"dataset":"app.logs"},"log":{"level":"info"},"env":"prod","status":"ok","value":12.5}
-{"create":{"_index":"logs-default-generic"}}
-{"@timestamp":"2026-03-12T00:01:00Z","service":{"name":"api"},"host":{"name":"host-b"},"event":{"dataset":"app.logs"},"log":{"level":"error"},"env":"prod","status":"error","value":41.1}
-{"create":{"_index":"logs-default-generic"}}
-{"@timestamp":"2026-03-12T00:02:00Z","service":{"name":"worker"},"host":{"name":"host-c"},"event":{"dataset":"app.logs"},"log":{"level":"warn"},"env":"staging","status":"warn","value":22.0}
-{"create":{"_index":"metrics-default-generic"}}
-{"@timestamp":"2026-03-12T00:00:00Z","service.name":"api","host.name":"host-a","env":"prod","cpu.pct":0.43,"latency_ms":121,"requests":240}
-{"create":{"_index":"metrics-default-generic"}}
-{"@timestamp":"2026-03-12T00:01:00Z","service.name":"api","host.name":"host-b","env":"prod","cpu.pct":0.88,"latency_ms":292,"requests":310}
-{"create":{"_index":"metrics-default-generic"}}
-{"@timestamp":"2026-03-12T00:02:00Z","service.name":"worker","host.name":"host-c","env":"staging","cpu.pct":0.36,"latency_ms":95,"requests":125}
-EOF
-
-echo "Seeding indices logs-default-generic + metrics-default-generic ..."
-bulk_response="$(curl -fsS -H "Content-Type: application/x-ndjson" \
-  -XPOST "http://localhost:9200/_bulk?refresh=true" \
-  --data-binary @/tmp/explore-seed.ndjson)"
-
-if printf '%s' "${bulk_response}" | grep -qE '"errors":[[:space:]]*true'; then
-  echo "Elasticsearch bulk seeding returned item-level errors." >&2
-  printf '%s\n' "${bulk_response}" >&2
-  exit 1
-fi
-
 echo "Waiting for Kibana on http://localhost:5601 ..."
 KIBANA_READY=0
 for _ in $(seq 1 180); do
@@ -85,6 +59,60 @@ if [ "${KIBANA_READY}" -ne 1 ]; then
   exit 1
 fi
 
+# Generate timestamps relative to "now" so data always falls within Kibana's
+# default "Last 15 minutes" range — no time picker changes needed.
+# Placed after the Kibana wait so timestamps don't age during boot.
+NOW_EPOCH="$(date +%s)"
+# Portable epoch-to-ISO: macOS uses `date -r`, GNU/Linux uses `date -d @`
+epoch_to_iso() {
+  date -u -r "$1" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
+    || date -u -d "@$1" +%Y-%m-%dT%H:%M:%SZ
+}
+TS0="$(epoch_to_iso $((NOW_EPOCH - 600)))"   # 10 min ago
+TS1="$(epoch_to_iso $((NOW_EPOCH - 540)))"   # 9 min ago
+TS2="$(epoch_to_iso $((NOW_EPOCH - 480)))"   # 8 min ago
+TS3="$(epoch_to_iso $((NOW_EPOCH - 420)))"   # 7 min ago
+TS4="$(epoch_to_iso $((NOW_EPOCH - 360)))"   # 6 min ago
+TS5="$(epoch_to_iso $((NOW_EPOCH - 300)))"   # 5 min ago
+
+cat > /tmp/explore-seed.ndjson <<EOF
+{"create":{"_index":"logs-default-generic"}}
+{"@timestamp":"${TS0}","service":{"name":"api"},"host":{"name":"host-a"},"event":{"dataset":"app.logs"},"log":{"level":"info"},"env":"prod","status":"ok","value":12.5}
+{"create":{"_index":"logs-default-generic"}}
+{"@timestamp":"${TS1}","service":{"name":"api"},"host":{"name":"host-b"},"event":{"dataset":"app.logs"},"log":{"level":"error"},"env":"prod","status":"error","value":41.1}
+{"create":{"_index":"logs-default-generic"}}
+{"@timestamp":"${TS2}","service":{"name":"worker"},"host":{"name":"host-c"},"event":{"dataset":"app.logs"},"log":{"level":"warn"},"env":"staging","status":"warn","value":22.0}
+{"create":{"_index":"metrics-default-generic"}}
+{"@timestamp":"${TS3}","service.name":"api","host.name":"host-a","env":"prod","cpu.pct":0.43,"latency_ms":121,"requests":240}
+{"create":{"_index":"metrics-default-generic"}}
+{"@timestamp":"${TS4}","service.name":"api","host.name":"host-b","env":"prod","cpu.pct":0.88,"latency_ms":292,"requests":310}
+{"create":{"_index":"metrics-default-generic"}}
+{"@timestamp":"${TS5}","service.name":"worker","host.name":"host-c","env":"staging","cpu.pct":0.36,"latency_ms":95,"requests":125}
+EOF
+
+echo "Seeding indices logs-default-generic + metrics-default-generic ..."
+bulk_response="$(curl -fsS -H "Content-Type: application/x-ndjson" \
+  -XPOST "http://localhost:9200/_bulk?refresh=true" \
+  --data-binary @/tmp/explore-seed.ndjson)"
+
+if printf '%s' "${bulk_response}" | grep -qE '"errors":[[:space:]]*true'; then
+  echo "Elasticsearch bulk seeding returned item-level errors." >&2
+  printf '%s\n' "${bulk_response}" >&2
+  exit 1
+fi
+
+# Create data views so Lens is immediately usable (Kibana never auto-creates these)
+echo "Creating data views ..."
+for DV in "logs-*" "metrics-*"; do
+  curl -fsS -X POST "http://localhost:5601/api/data_views/data_view" \
+    -H "kbn-xsrf: true" \
+    -H "Content-Type: application/json" \
+    -d "{\"data_view\":{\"title\":\"${DV}\",\"name\":\"${DV}\",\"timeFieldName\":\"@timestamp\"}}" \
+    >/dev/null
+  echo "  Created data view: ${DV}"
+done
+
 echo "Bootstrap complete."
 echo "- Elasticsearch: http://localhost:9200"
 echo "- Kibana:        http://localhost:5601"
+echo "- Data views:    logs-*, metrics-*"
