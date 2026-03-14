@@ -9,6 +9,7 @@ permissions:
   contents: read
   issues: write
   pull-requests: write
+  discussions: write
   id-token: write
 concurrency:
   group: daily-kibana-saved-object-patrol-${{ github.ref }}
