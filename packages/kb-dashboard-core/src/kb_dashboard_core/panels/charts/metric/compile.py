@@ -41,7 +41,7 @@ def compile_metric_chart_visualization_state(  # noqa: PLR0913
         layer_id (str): The ID of the layer.
         primary_metric_id (str): The ID of the primary metric.
         secondary_metric_id (str | None): The ID of the secondary metric.
-        maximum_metric_id (str | None): The ID of the maximum metric.
+        maximum_metric_id (str | None): The ID of the maximum metric used for progress bar display.
         breakdown_dimension_id (str | None): The ID of the breakdown dimension.
         color_mode (Literal['value', 'background']): Where Kibana applies metric color styling.
 

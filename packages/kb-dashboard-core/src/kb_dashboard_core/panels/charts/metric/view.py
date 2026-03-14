@@ -64,11 +64,11 @@ class KbnMetricVisualizationState(BaseVwModel):
     secondaryMetricAccessor: Annotated[str | None, OmitIfNone()] = Field(default=None)
     """Field accessor ID for a secondary comparison metric."""
 
+    maxAccessor: Annotated[str | None, OmitIfNone()] = Field(default=None)
+    """Field accessor ID for the maximum value metric (used for progress bar display)."""
+
     breakdownByAccessor: Annotated[str | None, OmitIfNone()] = Field(default=None)
     """Field accessor ID for breaking down the metric into multiple values."""
-
-    maxAccessor: Annotated[str | None, OmitIfNone()] = Field(default=None)
-    """Field accessor ID for the maximum value metric (used for sparkline scale)."""
 
     applyColorTo: Literal['value', 'background'] = Field(default='background')
     """Apply metric color to value text or background."""
@@ -102,11 +102,11 @@ class KbnESQLMetricVisualizationState(BaseVwModel):
     secondaryMetricAccessor: Annotated[str | None, OmitIfNone()] = Field(default=None)
     """Field accessor ID for a secondary comparison metric."""
 
+    maxAccessor: Annotated[str | None, OmitIfNone()] = Field(default=None)
+    """Field accessor ID for the maximum value metric (used for progress bar display)."""
+
     breakdownByAccessor: Annotated[str | None, OmitIfNone()] = Field(default=None)
     """Field accessor ID for breaking down the metric into multiple values."""
 
     applyColorTo: Literal['value', 'background'] = Field(default='background')
     """Apply metric color to value text or background."""
-
-    maxAccessor: Annotated[str | None, OmitIfNone()] = Field(default=None)
-    """Field accessor ID for the maximum value metric (used for sparkline scale)."""
