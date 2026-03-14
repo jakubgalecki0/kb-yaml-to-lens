@@ -57,8 +57,9 @@ jobs:
         - Kibana comboboxes are NOT `<select>` elements. Use `browser_type` to search, then
           `browser_snapshot` + `browser_click` on the matching option.
         - After navigating, always `browser_wait_for` with `textGone: "Loading Elastic"`.
-        - The bootstrap seeds data with recent timestamps — the default "Last 15 minutes"
-          time range should show data. If the field list is empty, re-run the bootstrap.
+        - Elasticsearch and Kibana are pre-provisioned for this workflow run.
+        - Do NOT run bootstrap scripts (`just explore-bootstrap`, `scripts/bootstrap-explore-kibana.sh`,
+          Docker compose, or equivalent) from the agent task.
         - See `.github/agent-guides/kibana-lens-playwright.md` for the full reference.
 
         ## Required workflow

@@ -40,6 +40,9 @@ jobs:
         - Elasticsearch URL: `http://localhost:9200`
         - Seeded indices: `logs-default-generic`, `metrics-default-generic`
         - Data views: `logs-*`, `metrics-*`
+        - Elasticsearch and Kibana are pre-provisioned for this workflow run.
+        - Do NOT run bootstrap scripts (`just explore-bootstrap`, `scripts/bootstrap-explore-kibana.sh`,
+          Docker compose, or equivalent) from the agent task.
 
         ## Required process (thorough)
         1. Review merged PRs and commits from the last 7 days, identify compiler-relevant
