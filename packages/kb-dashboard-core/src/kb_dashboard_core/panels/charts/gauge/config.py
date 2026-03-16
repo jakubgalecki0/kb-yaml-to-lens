@@ -33,6 +33,23 @@ class GaugeAppearance(BaseCfgModel):
     """Range-based palette configuration for gauge thresholds. When set, enables palette color mode."""
 
 
+class GaugeTitlesAndText(BaseCfgModel):
+    """Title and subtitle display options for gauges.
+
+    These fields map to Kibana gauge `labelMajor` (title) and `labelMinor` (subtitle).
+
+    - ``None`` (omit): Kibana default (auto for title, hidden for subtitle)
+    - ``False``: explicitly hidden
+    - ``str``: custom text
+    """
+
+    title: str | Literal[False] | None = Field(default=None)
+    """Gauge title. Omit for Kibana default, ``False`` to hide, or a string for custom text."""
+
+    subtitle: str | Literal[False] | None = Field(default=None)
+    """Gauge subtitle. Omit for no subtitle, ``False`` to hide, or a string for custom text."""
+
+
 class BaseGaugeChart(BaseCfgModel):
     """Base configuration for gauge chart visualizations.
 
@@ -45,6 +62,9 @@ class BaseGaugeChart(BaseCfgModel):
 
     appearance: GaugeAppearance | None = Field(default=None)
     """Visual appearance configuration for the gauge."""
+
+    titles_and_text: GaugeTitlesAndText | None = Field(default=None)
+    """Title and subtitle options mapped to gauge `label_major` and `label_minor`."""
 
 
 class LensGaugeChart(BaseChart, BaseGaugeChart):
