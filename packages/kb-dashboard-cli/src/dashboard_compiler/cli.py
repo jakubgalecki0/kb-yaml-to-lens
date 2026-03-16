@@ -87,7 +87,7 @@ def cli(ctx: click.Context, loglevel: str) -> None:
     # Also set level for our specific logger
     logging.getLogger('dashboard_compiler').setLevel(log_level)
 
-    _ = ctx.ensure_object(CliContext)
+    ctx.ensure_object(CliContext)
 
 
 # Register local file operation commands
