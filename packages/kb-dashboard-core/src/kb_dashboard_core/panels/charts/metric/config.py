@@ -4,7 +4,7 @@ from typing import Any, Literal, cast
 from pydantic import Field, model_validator
 
 from kb_dashboard_core.panels.charts.base.config import BaseChart, ColorRangeMapping
-from kb_dashboard_core.panels.charts.esql.columns.config import ESQLDimensionTypes, ESQLMetricTypes
+from kb_dashboard_core.panels.charts.esql.columns.config import ESQLBreakdownTypes, ESQLMetricTypes
 from kb_dashboard_core.panels.charts.lens.dimensions.config import LensDimensionTypes
 from kb_dashboard_core.panels.charts.lens.metrics.config import LensFormulaMetric, LensMetricTypes
 from kb_dashboard_core.panels.charts.lens.metrics.formula_parser import parse_formula
@@ -331,5 +331,5 @@ class ESQLMetricChart(BaseMetricChart):
     maximum: ESQLMetricTypes | None = Field(default=None)
     """An optional maximum metric to display, often used for comparison or thresholds."""
 
-    breakdown: ESQLDimensionTypes | None = Field(default=None)
+    breakdown: ESQLBreakdownTypes | None = Field(default=None)
     """An optional breakdown dimension to split metric values by category."""

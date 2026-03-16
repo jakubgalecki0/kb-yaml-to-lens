@@ -166,7 +166,8 @@ async def _upload_to_kibana(
 
     async with client:
         try:
-            result = await client.upload_ndjson(ndjson_file, overwrite=overwrite)
+            ndjson_content = ndjson_file.read_text(encoding='utf-8')
+            result = await client.upload_ndjson(ndjson_content, overwrite=overwrite)
 
             if result.success is True:
                 print_success(f'Successfully uploaded {result.success_count} object(s) to Kibana')

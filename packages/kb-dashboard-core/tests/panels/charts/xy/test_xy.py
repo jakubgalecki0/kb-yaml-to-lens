@@ -1666,6 +1666,41 @@ def test_value_labels_default_none_in_appearance_values() -> None:
     assert kbn_state_visualization.valueLabels == 'hide'
 
 
+def test_esql_xy_breakdown_collapse_compiles_to_layer_collapse_fn() -> None:
+    """ESQL breakdown collapse should compile to XY layer collapseFn."""
+    esql_chart = ESQLBarChart.model_validate(
+        {
+            'type': 'bar',
+            'mode': 'stacked',
+            'dimension': {'field': '@timestamp', 'id': 'dim1'},
+            'breakdown': {'field': 'host.name', 'id': 'split1', 'collapse': 'avg'},
+            'metrics': [{'field': 'count(*)', 'id': 'metric1'}],
+        }
+    )
+
+    _layer_id, _kbn_columns, kbn_state_visualization = compile_esql_xy_chart(esql_xy_chart=esql_chart)
+    layer = kbn_state_visualization.layers[0]
+    assert isinstance(layer, XYDataLayerConfig)
+    assert layer.collapseFn == 'avg'
+
+
+def test_esql_xy_no_collapse_without_breakdown() -> None:
+    """When no breakdown is set, collapseFn should be None."""
+    esql_chart = ESQLBarChart.model_validate(
+        {
+            'type': 'bar',
+            'mode': 'stacked',
+            'dimension': {'field': '@timestamp', 'id': 'dim1'},
+            'metrics': [{'field': 'count(*)', 'id': 'metric1'}],
+        }
+    )
+
+    _layer_id, _kbn_columns, kbn_state_visualization = compile_esql_xy_chart(esql_xy_chart=esql_chart)
+    layer = kbn_state_visualization.layers[0]
+    assert isinstance(layer, XYDataLayerConfig)
+    assert layer.collapseFn is None
+
+
 def test_xy_axis_deprecated_show_title_warns_and_maps() -> None:
     """Deprecated axis.show_title should warn and map to title bool."""
     with pytest.warns(DeprecationWarning, match='show_title'):
