@@ -270,6 +270,29 @@ class TestColorRangeMappingValidation:
         )
         assert len(mapping.thresholds) == 3
 
+    def test_accepts_legacy_continuity_alias(self) -> None:
+        """Test that legacy continuity input is translated to extend_beyond_range."""
+        with pytest.warns(DeprecationWarning, match='continuity'):
+            mapping = ColorRangeMapping.model_validate(
+                {
+                    'continuity': 'all',
+                    'thresholds': [{'up_to': 50, 'color': '#FFA500'}],
+                }
+            )
+        assert mapping.extend_beyond_range == 'both'
+
+    def test_extend_beyond_range_wins_over_legacy_continuity(self) -> None:
+        """Test explicit extend_beyond_range takes precedence over legacy continuity."""
+        with pytest.warns(DeprecationWarning, match='continuity'):
+            mapping = ColorRangeMapping.model_validate(
+                {
+                    'continuity': 'all',
+                    'extend_beyond_range': 'none',
+                    'thresholds': [{'up_to': 50, 'color': '#FFA500'}],
+                }
+            )
+        assert mapping.extend_beyond_range == 'none'
+
     def test_number_type_allows_values_outside_percent_bounds(self) -> None:
         """Test that number range type allows values outside 0-100."""
         mapping = ColorRangeMapping(
@@ -426,7 +449,7 @@ class TestCompileColorRangeMapping:
             range_type='number',
             range_min=-10,
             range_max=100,
-            continuity='none',
+            extend_beyond_range='none',
             thresholds=[
                 ColorThreshold(up_to=4.25, color='#24c292'),
                 ColorThreshold(up_to=5, color='#ffc9c2'),
@@ -447,7 +470,7 @@ class TestCompileColorRangeMapping:
             range_type='number',
             range_min=0,
             range_max=100,
-            continuity='above',
+            extend_beyond_range='above',
             thresholds=[
                 ColorThreshold(up_to=25, color='#00BF6F'),
                 ColorThreshold(up_to=50, color='#FFA500'),
@@ -468,7 +491,7 @@ class TestCompileColorRangeMapping:
             range_type='number',
             range_min=None,
             range_max=None,
-            continuity='all',
+            extend_beyond_range='both',
             thresholds=[
                 ColorThreshold(up_to=4.25, color='#24c292'),
                 ColorThreshold(up_to=5, color='#ffc9c2'),
