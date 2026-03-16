@@ -6,7 +6,7 @@ Use the CLI to access this guide from a local install:
 
 - `kb-dashboard docs guide breaking-changes`
 
-## 0.2.7 -> main
+## 0.2.7 -> 0.3.0
 
 At release time, update this header to `0.2.7 -> 0.3.0`.
 

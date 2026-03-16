@@ -85,7 +85,7 @@ def write_version(path: Path, file_format: str, old_version: str, new_version: s
 
 def check_all_dependencies_pinned(root: Path) -> None:
     """Check that all internal package dependencies are pinned (have version specifiers)."""
-    internal_packages = ['kb-dashboard-core', 'kb-dashboard-tools', 'kb-dashboard-lint', 'kb-dashboard-cli']
+    internal_packages = ['kb-dashboard-core', 'kb-dashboard-tools', 'kb-dashboard-lint', 'kb-dashboard-cli', 'kb-dashboard-docs']
     
     # Files that might have internal dependencies
     files_with_deps = [
@@ -128,7 +128,7 @@ def check_all_dependencies_pinned(root: Path) -> None:
 
 def update_internal_dependencies(root: Path, old_version: str, new_version: str, dry_run: bool) -> None:
     """Update internal package dependencies to exact versions."""
-    internal_packages = ['kb-dashboard-core', 'kb-dashboard-tools', 'kb-dashboard-lint', 'kb-dashboard-cli']
+    internal_packages = ['kb-dashboard-core', 'kb-dashboard-tools', 'kb-dashboard-lint', 'kb-dashboard-cli', 'kb-dashboard-docs']
     
     # Files that might have internal dependencies
     files_with_deps = [
