@@ -10,7 +10,7 @@ This guide covers converting existing Kibana dashboards into kb-yaml-to-lens YAM
 
 1. **Fetch** the dashboard NDJSON (`kb-dashboard fetch`) or download it from a repository.
 2. **Decompile** into a YAML skeleton: `kb-dashboard decompile dashboard.ndjson -o dashboard.yaml`. This gives you panel stubs with layout, titles, and panel types pre-filled. Each stub includes `TODO(decompile)` comments containing the original Kibana panel JSON.
-3. **Fill in panel configs** using the TODO comments as reference. Translate the original Kibana JSON into the YAML schema (type, data_view, metrics, dimensions, breakdowns, etc.). Use the [Component Mapping](#component-mapping) section below and the panel type documentation as guides.
+3. **Fill in panel configs** using the TODO comments as reference. Translate the original Kibana JSON into the YAML schema using the current panel-specific keys (`type`, `data_view`, `metrics`, `dimension`, `breakdown`, `breakdowns`, etc.). Use the [Component Mapping](#component-mapping) section below and the panel type documentation as guides.
 4. **Compile** to verify the YAML is valid: `kb-dashboard compile`.
 5. **Round-trip validate**: disassemble both the original and compiled NDJSON, then compare them.
 
@@ -33,7 +33,7 @@ Use this prompt pattern when asking an LLM to complete a decompiled dashboard. K
 ```text
 Complete the decompiled YAML stubs in <yaml_file>. Each panel has TODO comments
 containing the original Kibana panel JSON — use these to fill in the lens
-configuration (type, data_view, metrics, dimensions, breakdowns).
+configuration (type, data_view, metrics, `dimension`, `breakdown`, `breakdowns`, and related panel-specific fields).
 
 Requirements:
 1. Preserve panel layout (size and position are already set).
@@ -152,11 +152,11 @@ Omit fields that match defaults. Common defaults:
 
 **Dashboard Level:**
 
-- `use_margins: true`
-- `sync_colors: false`
-- `sync_cursor: true`
-- `sync_tooltips: false`
-- `hide_panel_titles: false`
+- `settings.margins: true`
+- `settings.sync.colors: false`
+- `settings.sync.cursor: true`
+- `settings.sync.tooltips: false`
+- `settings.titles: true`
 
 **Panel Level:**
 
@@ -366,7 +366,7 @@ Reference [Filters & Queries](../filters/config.md) for filter conversion.
 | `lnsPie` | `lens.type: pie` | [Pie Charts](../panels/pie.md) |
 | `lnsXY` | `lens.type: line/bar/area` | [XY Charts](../panels/xy.md) |
 | `lnsGauge` | `lens.type: gauge` | [Gauge Charts](../panels/gauge.md) |
-| `lnsDatatable` | `lens.type: table` | [Datatable Charts](../panels/datatable.md) |
+| `lnsDatatable` | `lens.type: datatable` | [Datatable Charts](../panels/datatable.md) |
 | `markdown` | `markdown` | [Markdown Panels](../panels/markdown.md) |
 | `links` | `links` | [Links Panels](../panels/links.md) |
 
@@ -463,11 +463,13 @@ Before considering a conversion complete:
 
 - [ ] YAML compiles without errors
 - [ ] Panel counts match (or differences are documented)
-- [ ] Panel types match (lens, visualization, links, markdown)
+- [ ] Panel types match (lens, esql, links, markdown, image, search, vega, section)
 - [ ] Chart configurations preserved (type, stacking, legends)
 - [ ] All dimensions and breakdowns accounted for
 - [ ] Size parameters match original values
 - [ ] Field names and aggregations verified
+
+Note: Section is only available in Kibana 9.1+
 
 ## Common Patterns
 
@@ -512,9 +514,9 @@ Before considering a conversion complete:
 lens:
   type: line
   data_view: metrics-*
-  dimensions:
-    - field: '@timestamp'
-      type: date_histogram
+  dimension:
+    field: '@timestamp'
+    type: date_histogram
   metrics:
     - field: system.cpu.total.norm.pct
       aggregation: average
@@ -540,12 +542,12 @@ lens:
 lens:
   type: line
   data_view: metrics-*
-  dimensions:
-    - field: '@timestamp'
-      type: date_histogram
+  dimension:
+    field: '@timestamp'
+    type: date_histogram
   breakdown:
-    - field: host.name
-      type: values
+    field: host.name
+    type: values
   metrics:
     - field: cpu.usage
       aggregation: average
@@ -575,7 +577,7 @@ TypeError: Expected string, got int
 ### Unsupported Panel Types
 
 ```text
-Error: Panel type 'vega' is not supported
+Error: Panel type 'map' is not supported
 ```
 
 **Solution:** See [supported panel types](../panels/base.md). For unsupported panels, either:

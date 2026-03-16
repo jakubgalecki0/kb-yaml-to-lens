@@ -82,6 +82,7 @@ The main object defining the dashboard.
 | `name` | `string` | The title of the dashboard displayed in Kibana. | N/A | Yes |
 | `id` | `string` | An optional unique identifier for the dashboard. If not provided, one will be generated based on the name. | Generated ID | No |
 | `description` | `string` | A brief description of the dashboard's purpose or content. | `""` (empty string) | No |
+| `minimum_kibana_version` | `string` | Optional minimum Kibana version required by this dashboard. Use this when the dashboard intentionally relies on newer Kibana features such as `TS`-based ES\|QL queries. | `None` | No |
 | `time_range` | `TimeRange` object | A default time range to apply when opening the dashboard. See [Time Range](#time-range-time_range). | `None` | No |
 | `settings` | `DashboardSettings` object | Global settings for the dashboard. See [Dashboard Settings](#dashboard-settings-settings). | See defaults below | No |
 | `query` | `Query` object | A global query (KQL or Lucene) applied to the dashboard. See [Queries Documentation](../queries/config.md). | `None` | No |
@@ -110,6 +111,53 @@ dashboards:
       - markdown:
           content: "This dashboard defaults to the last 30 days."
         size: {w: 12, h: 3}
+```
+
+### Minimum Kibana Version (`minimum_kibana_version`)
+
+Use `minimum_kibana_version` when a dashboard depends on features that are unavailable on older Kibana versions.
+For example, `section` panels require Kibana 9.1+, and `TS`-based ES|QL queries require Kibana 9.2+.
+
+**Example:**
+
+```yaml
+dashboards:
+  - name: "TS-Based Metrics Dashboard"
+    minimum_kibana_version: "9.2.0"
+    panels:
+      - title: "Request Rate"
+        esql:
+          type: line
+          query: |
+            TS metrics-*
+            | STATS request_rate = SUM(RATE(http.requests))
+              BY time_bucket = BUCKET(@timestamp, 20, ?_tstart, ?_tend)
+            | SORT time_bucket ASC
+          dimension:
+            field: "time_bucket"
+          metrics:
+            - field: "request_rate"
+```
+
+**Example with collapsible sections:**
+
+```yaml
+dashboards:
+  - name: "Operations Overview"
+    minimum_kibana_version: "9.1.0"
+    panels:
+      - title: "Expanded Details"
+        section:
+          collapsed: true
+          panels:
+            - title: "CPU Usage"
+              size: { w: half, h: 8 }
+              lens:
+                type: metric
+                data_view: "metrics-*"
+                primary:
+                  aggregation: average
+                  field: system.cpu.total.pct
 ```
 
 ### Dashboard Settings (`settings`)
