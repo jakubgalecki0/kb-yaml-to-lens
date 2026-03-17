@@ -1094,9 +1094,11 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "basedpyright" },
+    { name = "inline-snapshot" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "ruamel-yaml" },
     { name = "ruff" },
 ]
 
@@ -1111,9 +1113,11 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "basedpyright", specifier = ">=1.37" },
+    { name = "inline-snapshot", specifier = ">=0.24" },
     { name = "pytest", specifier = ">=9.0" },
     { name = "pytest-asyncio", specifier = ">=1.3" },
     { name = "pytest-cov", specifier = ">=6.0" },
+    { name = "ruamel-yaml", specifier = ">=0.18.0" },
     { name = "ruff", specifier = ">=0.14" },
 ]
 
