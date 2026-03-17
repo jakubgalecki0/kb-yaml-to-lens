@@ -1,8 +1,10 @@
 """Phase 2: Infer Dashboard config objects from parsed intermediate structures.
 
-Maps parsed Kibana/Kbn view data to actual kb-dashboard-core config models.
+Maps parsed Kibana/Kbn view data to actual kb-dashboard-core config models,
+producing dicts that can be validated into ``Dashboard`` instances.
 """
 
+import logging
 from typing import Any
 
 from kb_dashboard_core.dashboard.config import Dashboard
@@ -24,13 +26,32 @@ from .parse import (
 )
 from .tables import (
     CONTROL_TYPE_MAP,
+    KIBANA_AXIS_EXTENT_MODE_TO_YAML,
+    KIBANA_CURVE_TYPE_TO_YAML,
+    KIBANA_DEFAULT_FILL_OPACITY,
+    KIBANA_END_VALUE_TO_YAML,
+    KIBANA_FITTING_FUNCTION_TO_YAML,
+    KIBANA_LEGEND_SIZE_TO_YAML,
     LENS_VISUALIZATION_TYPES,
     OPERATION_TYPE_MAP,
+    PARTITION_CHART_TYPES,
     PIE_SHAPES,
     SKIP_OPERATION_TYPES,
     XY_SERIES_TYPES,
     XY_STACKING_MODES,
 )
+
+logger = logging.getLogger(__name__)
+
+# Chart-type classification sets (reused across functions)
+_XY_CHART_TYPES = frozenset({'line', 'bar', 'area'})
+_SINGULAR_METRIC_TYPES = frozenset({'gauge', 'tagcloud', 'waffle', 'mosaic'})
+_SINGULAR_DIM_TYPES = frozenset({'tagcloud', 'waffle', 'mosaic'})
+_PARTITION_TYPES = frozenset({'pie', 'treemap'})
+_PLURAL_METRIC_TYPES = frozenset({'pie', 'treemap', 'datatable', 'line', 'bar', 'area'})
+
+# Sentinel field name Kibana uses for record-count metrics
+_RECORDS_FIELD = 'Records'
 
 # ---------------------------------------------------------------------------
 # Chart type resolution
@@ -38,6 +59,7 @@ from .tables import (
 
 
 def _resolve_chart_type(vis_state: ParsedVisualizationState) -> str | None:
+    """Map Kibana visualization type + series preferences to a YAML chart type."""
     raw = vis_state.raw_type
     if raw is None:
         return None
@@ -57,6 +79,7 @@ def _resolve_chart_type(vis_state: ParsedVisualizationState) -> str | None:
 
 
 def _resolve_stacking_mode(vis_state: ParsedVisualizationState, chart_type: str | None) -> str | None:
+    """Determine stacking mode (stacked/percentage) for bar and area charts."""
     if chart_type not in {'bar', 'area'}:
         return None
     pst = vis_state.preferred_series_type
@@ -71,6 +94,7 @@ def _resolve_stacking_mode(vis_state: ParsedVisualizationState, chart_type: str 
 
 
 def _extract_metric_filter(col: ParsedColumn) -> dict[str, str] | None:
+    """Extract the metric-level KQL/Lucene filter from a column, if present."""
     if col.filter_query is not None:
         if col.filter_language == 'kuery':
             return {'kql': col.filter_query}
@@ -83,6 +107,7 @@ def _extract_metric_filter(col: ParsedColumn) -> dict[str, str] | None:
 
 
 def _extract_metric_format(col: ParsedColumn) -> dict[str, Any] | None:
+    """Extract number/byte/percent format configuration from a column."""
     format_config = as_dict(col.params.get('format'))
     if format_config is None:
         return None
@@ -104,15 +129,40 @@ def _build_metric_dict(col: ParsedColumn) -> dict[str, Any] | None:
     """Build a metric config dict from a form-based column. Returns None if skipped."""
     if col.operation_type in SKIP_OPERATION_TYPES:
         return None
+
+    # Formula metrics bypass the normal aggregation mapping
+    if col.operation_type == 'formula':
+        formula_str = col.params.get('formula')
+        if not isinstance(formula_str, str):
+            return None
+        metric: dict[str, Any] = {'formula': formula_str}
+        if col.label is not None and len(col.label) > 0:
+            metric['label'] = col.label
+        fmt = _extract_metric_format(col)
+        if fmt is not None:
+            metric['format'] = fmt
+        return metric
+
     aggregation = OPERATION_TYPE_MAP.get(col.operation_type)
     if aggregation is None:
         return None
 
-    metric: dict[str, Any] = {'aggregation': aggregation}
-    if col.source_field is not None and col.source_field != 'Records':
+    metric = {'aggregation': aggregation}
+    if col.source_field is not None and col.source_field != _RECORDS_FIELD:
         metric['field'] = col.source_field
     if col.label is not None and len(col.label) > 0:
         metric['label'] = col.label
+
+    # Extract percentile-specific parameters
+    if col.operation_type == 'percentile':
+        percentile_val = col.params.get('percentile')
+        if isinstance(percentile_val, (int, float)):
+            metric['percentile'] = int(percentile_val)
+    elif col.operation_type == 'percentile_rank':
+        rank_val = col.params.get('value')
+        if isinstance(rank_val, (int, float)):
+            metric['rank'] = rank_val
+
     filt = _extract_metric_filter(col)
     if filt is not None:
         metric['filter'] = filt
@@ -260,6 +310,313 @@ def _classify_esql_columns(
 
 
 # ---------------------------------------------------------------------------
+# Legend extraction
+# ---------------------------------------------------------------------------
+
+
+def _extract_xy_legend(vis_raw: dict[str, Any]) -> dict[str, Any] | None:
+    """Extract legend settings from an XY visualization state."""
+    legend_raw = as_dict(vis_raw.get('legend'))
+    if legend_raw is None:
+        return None
+
+    legend: dict[str, Any] = {}
+
+    is_visible = legend_raw.get('isVisible')
+    if isinstance(is_visible, bool):
+        legend['visible'] = 'show' if is_visible else 'hide'
+
+    position = legend_raw.get('position')
+    if isinstance(position, str) and position != 'right':
+        legend['position'] = position
+
+    show_single = legend_raw.get('showSingleSeries')
+    if isinstance(show_single, bool) and show_single:
+        legend['show_single_series'] = True
+
+    legend_size = legend_raw.get('legendSize')
+    if isinstance(legend_size, str) and legend_size in KIBANA_LEGEND_SIZE_TO_YAML:
+        legend['width'] = KIBANA_LEGEND_SIZE_TO_YAML[legend_size]
+
+    should_truncate = legend_raw.get('shouldTruncate')
+    max_lines = legend_raw.get('maxLines')
+    if isinstance(should_truncate, bool) and not should_truncate:
+        legend['truncate_labels'] = 0
+    elif isinstance(max_lines, int) and max_lines > 0:
+        legend['truncate_labels'] = max_lines
+
+    return legend if legend else None
+
+
+def _extract_partition_legend(vis_raw: dict[str, Any]) -> dict[str, Any] | None:
+    """Extract legend settings from a partition chart (pie, waffle, mosaic, treemap) visualization layer."""
+    layers = vis_raw.get('layers')
+    if not isinstance(layers, list) or len(layers) == 0:  # pyright: ignore[reportUnknownArgumentType]
+        return None
+    layer = as_dict(layers[0])  # pyright: ignore[reportUnknownArgumentType]
+    if layer is None:
+        return None
+
+    legend: dict[str, Any] = {}
+
+    legend_display = layer.get('legendDisplay')
+    if isinstance(legend_display, str):
+        if legend_display == 'hide':
+            legend['visible'] = 'hide'
+        elif legend_display == 'show':
+            legend['visible'] = 'show'
+
+    legend_position = layer.get('legendPosition')
+    if isinstance(legend_position, str) and legend_position != 'right':
+        legend['position'] = legend_position
+
+    show_single = layer.get('showSingleSeries')
+    if isinstance(show_single, bool) and show_single:
+        legend['show_single_series'] = True
+
+    legend_size = layer.get('legendSize')
+    if isinstance(legend_size, str) and legend_size in KIBANA_LEGEND_SIZE_TO_YAML:
+        legend['width'] = KIBANA_LEGEND_SIZE_TO_YAML[legend_size]
+
+    truncate_legend = layer.get('truncateLegend')
+    legend_max_lines = layer.get('legendMaxLines')
+    if isinstance(truncate_legend, bool) and not truncate_legend:
+        legend['truncate_labels'] = 0
+    elif isinstance(legend_max_lines, int) and legend_max_lines > 0:
+        legend['truncate_labels'] = legend_max_lines
+
+    return legend if legend else None
+
+
+# ---------------------------------------------------------------------------
+# XY Appearance extraction
+# ---------------------------------------------------------------------------
+
+
+def _extract_axis_config(
+    vis_raw: dict[str, Any],
+    scale_key: str,
+    title_key: str,
+    extent_key: str,
+    title_visibility_axis: str,
+) -> dict[str, Any] | None:
+    """Extract axis configuration (scale, title, extent) for a single axis."""
+    axis: dict[str, Any] = {}
+
+    # Axis title visibility — False hides the title regardless of custom text
+    title_hidden = False
+    axis_vis_settings = as_dict(vis_raw.get('axisTitlesVisibilitySettings'))
+    if axis_vis_settings is not None:
+        show_title = axis_vis_settings.get(title_visibility_axis)
+        if isinstance(show_title, bool) and not show_title:
+            axis['title'] = False
+            title_hidden = True
+
+    # Custom axis title (skip if visibility is explicitly hidden)
+    if not title_hidden:
+        title_val = vis_raw.get(title_key)
+        if isinstance(title_val, str) and len(title_val) > 0:
+            axis['title'] = title_val
+
+    # Scale
+    scale_val = vis_raw.get(scale_key)
+    if isinstance(scale_val, str) and scale_val != 'linear':
+        axis['scale'] = scale_val
+
+    # Extent
+    extent_raw = as_dict(vis_raw.get(extent_key))
+    if extent_raw is not None:
+        mode = extent_raw.get('mode')
+        if isinstance(mode, str) and mode != 'full':
+            extent: dict[str, Any] = {}
+            yaml_mode = KIBANA_AXIS_EXTENT_MODE_TO_YAML.get(mode, mode)
+            extent['mode'] = yaml_mode
+            if mode == 'custom':
+                lower = extent_raw.get('lowerBound')
+                upper = extent_raw.get('upperBound')
+                if isinstance(lower, (int, float)):
+                    extent['min'] = lower
+                if isinstance(upper, (int, float)):
+                    extent['max'] = upper
+            axis['extent'] = extent
+
+    return axis if axis else None
+
+
+def _extract_xy_appearance(vis_raw: dict[str, Any], chart_type: str | None) -> dict[str, Any] | None:
+    """Extract appearance settings from an XY visualization state."""
+    appearance: dict[str, Any] = {}
+
+    # Missing values (fitting function) -- line/area only
+    if chart_type in {'line', 'area'}:
+        fitting = vis_raw.get('fittingFunction')
+        if isinstance(fitting, str) and fitting in KIBANA_FITTING_FUNCTION_TO_YAML:
+            appearance['missing_values'] = KIBANA_FITTING_FUNCTION_TO_YAML[fitting]
+
+        emphasize = vis_raw.get('emphasizeFitting')
+        if isinstance(emphasize, bool) and emphasize:
+            appearance['show_as_dotted'] = True
+
+        end_value = vis_raw.get('endValue')
+        if isinstance(end_value, str) and end_value in KIBANA_END_VALUE_TO_YAML:
+            appearance['end_values'] = KIBANA_END_VALUE_TO_YAML[end_value]
+
+        curve_type = vis_raw.get('curveType')
+        if isinstance(curve_type, str) and curve_type in KIBANA_CURVE_TYPE_TO_YAML:
+            appearance['line_style'] = KIBANA_CURVE_TYPE_TO_YAML[curve_type]
+
+        show_time_marker = vis_raw.get('showCurrentTimeMarker')
+        if isinstance(show_time_marker, bool) and show_time_marker:
+            appearance['show_current_time_marker'] = True
+
+        hide_endzones = vis_raw.get('hideEndzones')
+        if isinstance(hide_endzones, bool) and hide_endzones:
+            appearance['hide_endzones'] = True
+
+    # Fill opacity -- area only
+    if chart_type == 'area':
+        fill_opacity = vis_raw.get('fillOpacity')
+        if isinstance(fill_opacity, (int, float)) and fill_opacity != KIBANA_DEFAULT_FILL_OPACITY:
+            appearance['fill_opacity'] = fill_opacity
+
+    # Min bar height -- bar only
+    if chart_type == 'bar':
+        min_bar_height = vis_raw.get('minBarHeight')
+        if isinstance(min_bar_height, (int, float)) and min_bar_height > 0:
+            appearance['min_bar_height'] = min_bar_height
+
+    # Value labels
+    value_labels = vis_raw.get('valueLabels')
+    if isinstance(value_labels, str) and value_labels == 'show':
+        appearance.setdefault('values', {})['visible'] = True
+
+    # Axis configs
+    y_left = _extract_axis_config(vis_raw, 'yLeftScale', 'yTitle', 'yLeftExtent', 'yLeft')
+    if y_left is None:
+        # Also check yLeftTitle (newer Kibana)
+        y_left = _extract_axis_config(vis_raw, 'yLeftScale', 'yLeftTitle', 'yLeftExtent', 'yLeft')
+    if y_left is not None:
+        appearance['y_left_axis'] = y_left
+
+    y_right = _extract_axis_config(vis_raw, 'yRightScale', 'yRightTitle', 'yRightExtent', 'yRight')
+    if y_right is not None:
+        appearance['y_right_axis'] = y_right
+
+    x_axis = _extract_axis_config(vis_raw, 'xScale', 'xTitle', 'xExtent', 'x')
+    if x_axis is not None:
+        appearance['x_axis'] = x_axis
+
+    return appearance if appearance else None
+
+
+# ---------------------------------------------------------------------------
+# Metrics / dimensions / defaults assignment
+# ---------------------------------------------------------------------------
+
+
+def _assign_metrics_and_dimensions(
+    chart: dict[str, Any],
+    chart_type: str,
+    all_metrics: list[dict[str, Any]],
+    all_dimensions: list[dict[str, Any]],
+    all_breakdowns: list[dict[str, Any]],
+) -> None:
+    """Assign extracted metrics, dimensions, and breakdowns to the chart dict based on chart type."""
+    is_xy = chart_type in _XY_CHART_TYPES
+    is_heatmap = chart_type == 'heatmap'
+
+    # -- Metrics --
+    if chart_type == 'metric':
+        if len(all_metrics) > 0:
+            chart['primary'] = all_metrics[0]
+        if len(all_metrics) > 1:
+            chart['secondary'] = all_metrics[1]
+    elif is_heatmap or chart_type in _SINGULAR_METRIC_TYPES:
+        if len(all_metrics) > 0:
+            chart['metric'] = all_metrics[0]
+    elif chart_type in _PLURAL_METRIC_TYPES and len(all_metrics) > 0:
+        chart['metrics'] = all_metrics
+
+    # -- Dimensions --
+    if is_xy:
+        if len(all_dimensions) > 0:
+            chart['dimension'] = all_dimensions[0]
+        if len(all_breakdowns) > 0:
+            chart['breakdown'] = all_breakdowns[0]
+    elif is_heatmap:
+        if len(all_dimensions) > 0:
+            chart['x_axis'] = all_dimensions[0]
+        if len(all_breakdowns) > 0:
+            chart['y_axis'] = all_breakdowns[0]
+        elif len(all_dimensions) > 1:
+            chart['y_axis'] = all_dimensions[1]
+    elif chart_type in _SINGULAR_DIM_TYPES:
+        merged = [*all_dimensions, *all_breakdowns]
+        if len(merged) > 0:
+            if chart_type == 'waffle':
+                chart['breakdown'] = merged[0]
+            else:
+                chart['dimension'] = merged[0]
+        if chart_type == 'mosaic' and len(merged) > 1:
+            chart['breakdown'] = merged[1]
+    else:
+        merged = [*all_dimensions, *all_breakdowns]
+        if len(merged) > 0:
+            chart['breakdowns'] = merged
+
+
+def _fill_required_defaults(
+    chart: dict[str, Any],
+    chart_type: str,
+    panel_type: str,
+    has_skipped_metrics: bool,
+) -> None:
+    """Fill in TODO placeholder defaults for incomplete panels so the YAML is still valid."""
+    default_metric: dict[str, Any]
+    default_dim: dict[str, Any]
+
+    if panel_type == 'lens':
+        if has_skipped_metrics:
+            default_metric = {'aggregation': 'sum', 'field': 'TODO_unsupported_metric_field', 'label': 'TODO_unsupported_metric'}
+        else:
+            default_metric = {'aggregation': 'count'}
+        default_dim = {'type': 'values', 'field': 'TODO_field'}
+        if 'data_view' not in chart:
+            chart['data_view'] = 'TODO_data_view'
+    else:
+        default_metric = {'field': 'TODO_metric_field'}
+        default_dim = {'field': 'TODO_dimension_field'}
+
+    is_xy = chart_type in _XY_CHART_TYPES
+    is_partition = chart_type in _PARTITION_TYPES
+
+    if chart_type == 'metric' and 'primary' not in chart:
+        chart['primary'] = default_metric
+    if is_xy and 'metrics' not in chart:
+        chart['metrics'] = [default_metric]
+    if is_partition:
+        if 'metrics' not in chart:
+            chart['metrics'] = [default_metric]
+        if 'breakdowns' not in chart:
+            chart['breakdowns'] = [default_dim]
+    if chart_type == 'datatable' and 'metrics' not in chart and 'breakdowns' not in chart:
+        chart['metrics'] = [default_metric]
+    if chart_type == 'heatmap':
+        if 'x_axis' not in chart:
+            chart['x_axis'] = default_dim
+        if 'metric' not in chart:
+            chart['metric'] = default_metric
+    if chart_type in _SINGULAR_METRIC_TYPES and 'metric' not in chart:
+        chart['metric'] = default_metric
+    if chart_type in _SINGULAR_DIM_TYPES:
+        if chart_type == 'waffle':
+            if 'breakdown' not in chart:
+                chart['breakdown'] = default_dim
+        elif 'dimension' not in chart:
+            chart['dimension'] = default_dim
+
+
+# ---------------------------------------------------------------------------
 # Panel inference
 # ---------------------------------------------------------------------------
 
@@ -284,6 +641,30 @@ def _infer_lens_chart(parsed: ParsedLensPanel) -> dict[str, Any]:
     if chart_type is None:
         chart_type = 'metric'
         chart['type'] = chart_type
+
+    # Extract legend and appearance from visualization state
+    if vis_state is not None:
+        vis_raw = vis_state.raw
+
+        # Legend extraction
+        if chart_type in _XY_CHART_TYPES:
+            legend = _extract_xy_legend(vis_raw)
+        elif chart_type in PARTITION_CHART_TYPES:
+            legend = _extract_partition_legend(vis_raw)
+        else:
+            legend = None
+        if legend is not None:
+            chart['legend'] = legend
+
+        # XY appearance extraction
+        if chart_type in _XY_CHART_TYPES:
+            xy_appearance = _extract_xy_appearance(vis_raw, chart_type)
+            if xy_appearance is not None:
+                existing = chart.get('appearance')
+                if isinstance(existing, dict):
+                    existing.update(xy_appearance)  # pyright: ignore[reportUnknownMemberType]
+                else:
+                    chart['appearance'] = xy_appearance
 
     # Data view / query
     if parsed.panel_type == 'lens' and parsed.data_view_id is not None:
@@ -322,124 +703,8 @@ def _infer_lens_chart(parsed: ParsedLensPanel) -> dict[str, Any]:
             if skipped:
                 has_skipped_metrics = True
 
-    # Assign metrics/dimensions/breakdowns based on chart type
-    is_xy = chart_type in {'line', 'bar', 'area'}
-    is_metric_chart = chart_type == 'metric'
-    is_singular_metric = chart_type in {'gauge', 'tagcloud', 'waffle', 'mosaic'}
-    is_singular_dim = chart_type in {'tagcloud', 'waffle', 'mosaic'}
-    is_heatmap = chart_type == 'heatmap'
-    is_partition = chart_type in {'pie', 'treemap'}
-    uses_plural_metrics = chart_type in {'pie', 'treemap', 'datatable'} or is_xy
-
-    default_lens_metric: dict[str, Any] = {'aggregation': 'count'}
-    unsupported_lens_metric: dict[str, Any] = {
-        'aggregation': 'sum',
-        'field': 'TODO_unsupported_metric_field',
-        'label': 'TODO_unsupported_metric',
-    }
-    default_esql_metric: dict[str, Any] = {'field': 'TODO_metric_field'}
-    default_lens_dim: dict[str, Any] = {'type': 'values', 'field': 'TODO_field'}
-    default_esql_dim: dict[str, Any] = {'field': 'TODO_dimension_field'}
-
-    # -- Metrics assignment --
-    if is_metric_chart:
-        if len(all_metrics) > 0:
-            chart['primary'] = all_metrics[0]
-        if len(all_metrics) > 1:
-            chart['secondary'] = all_metrics[1]
-    elif is_heatmap:
-        if len(all_metrics) > 0:
-            chart['metric'] = all_metrics[0]
-    elif is_singular_metric:
-        # gauge, tagcloud, waffle, mosaic use singular 'metric'
-        if len(all_metrics) > 0:
-            chart['metric'] = all_metrics[0]
-    elif uses_plural_metrics and len(all_metrics) > 0:
-        chart['metrics'] = all_metrics
-
-    # -- Dimensions assignment --
-    if is_xy:
-        if len(all_dimensions) > 0:
-            chart['dimension'] = all_dimensions[0]
-        if len(all_breakdowns) > 0:
-            chart['breakdown'] = all_breakdowns[0]
-    elif is_heatmap:
-        if len(all_dimensions) > 0:
-            chart['x_axis'] = all_dimensions[0]
-        if len(all_breakdowns) > 0:
-            chart['y_axis'] = all_breakdowns[0]
-        elif len(all_dimensions) > 1:
-            chart['y_axis'] = all_dimensions[1]
-    elif is_singular_dim:
-        # tagcloud, mosaic use 'dimension'; waffle uses 'breakdown'
-        merged = [*all_dimensions, *all_breakdowns]
-        if len(merged) > 0:
-            if chart_type == 'waffle':
-                chart['breakdown'] = merged[0]
-            else:
-                chart['dimension'] = merged[0]
-        if chart_type == 'mosaic' and len(merged) > 1:
-            chart['breakdown'] = merged[1]
-    else:
-        merged = [*all_dimensions, *all_breakdowns]
-        if len(merged) > 0:
-            chart['breakdowns'] = merged
-
-    # Fill in required defaults for incomplete panels
-    is_lens = parsed.panel_type == 'lens'
-    if is_lens:
-        lens_metric_fallback = unsupported_lens_metric if has_skipped_metrics else default_lens_metric
-        if 'data_view' not in chart:
-            chart['data_view'] = 'TODO_data_view'
-        if is_metric_chart and 'primary' not in chart:
-            chart['primary'] = lens_metric_fallback
-        if is_xy and 'metrics' not in chart:
-            chart['metrics'] = [lens_metric_fallback]
-        if is_partition:
-            if 'metrics' not in chart:
-                chart['metrics'] = [lens_metric_fallback]
-            if 'breakdowns' not in chart:
-                chart['breakdowns'] = [default_lens_dim]
-        if chart_type == 'datatable' and 'metrics' not in chart and 'breakdowns' not in chart:
-            chart['metrics'] = [lens_metric_fallback]
-        if is_heatmap:
-            if 'x_axis' not in chart:
-                chart['x_axis'] = default_lens_dim
-            if 'metric' not in chart:
-                chart['metric'] = lens_metric_fallback
-        if is_singular_metric and 'metric' not in chart:
-            chart['metric'] = lens_metric_fallback
-        if is_singular_dim:
-            if chart_type == 'waffle':
-                if 'breakdown' not in chart:
-                    chart['breakdown'] = default_lens_dim
-            elif 'dimension' not in chart:
-                chart['dimension'] = default_lens_dim
-    else:
-        if is_metric_chart and 'primary' not in chart:
-            chart['primary'] = default_esql_metric
-        if is_xy and 'metrics' not in chart:
-            chart['metrics'] = [default_esql_metric]
-        if is_partition:
-            if 'metrics' not in chart:
-                chart['metrics'] = [default_esql_metric]
-            if 'breakdowns' not in chart:
-                chart['breakdowns'] = [default_esql_dim]
-        if chart_type == 'datatable' and 'metrics' not in chart and 'breakdowns' not in chart:
-            chart['metrics'] = [default_esql_metric]
-        if is_heatmap:
-            if 'x_axis' not in chart:
-                chart['x_axis'] = default_esql_dim
-            if 'metric' not in chart:
-                chart['metric'] = default_esql_metric
-        if is_singular_metric and 'metric' not in chart:
-            chart['metric'] = default_esql_metric
-        if is_singular_dim:
-            if chart_type == 'waffle':
-                if 'breakdown' not in chart:
-                    chart['breakdown'] = default_esql_dim
-            elif 'dimension' not in chart:
-                chart['dimension'] = default_esql_dim
+    _assign_metrics_and_dimensions(chart, chart_type, all_metrics, all_dimensions, all_breakdowns)
+    _fill_required_defaults(chart, chart_type, parsed.panel_type, has_skipped_metrics)
 
     return chart
 
@@ -521,6 +786,7 @@ def _infer_image_panel(simple: ParsedSimplePanel, _ref_lookup: dict[str, str]) -
 
 
 def _build_link_common(raw_link: dict[str, Any]) -> dict[str, Any]:
+    """Extract common link fields (id, label) shared by external and dashboard links."""
     item: dict[str, Any] = {}
     link_id = raw_link.get('id')
     if isinstance(link_id, str):
@@ -589,8 +855,19 @@ def _infer_links_panel(simple: ParsedSimplePanel, ref_lookup: dict[str, str]) ->
 
 
 def _infer_vega_panel(_simple: ParsedSimplePanel, _ref_lookup: dict[str, str]) -> dict[str, Any]:
+    """Infer vega panel config (stub -- spec must be provided manually)."""
     return {'spec': {}}
 
+
+type _SimplePanelBuilder = Any  # Callable[[ParsedSimplePanel, dict[str, str]], dict[str, Any]]
+
+_SIMPLE_PANEL_BUILDERS: dict[str, _SimplePanelBuilder] = {
+    'markdown': _infer_markdown_panel,
+    'search': _infer_search_panel,
+    'links': _infer_links_panel,
+    'image': _infer_image_panel,
+    'vega': _infer_vega_panel,
+}
 
 # ---------------------------------------------------------------------------
 # Dashboard-level inference
@@ -598,6 +875,7 @@ def _infer_vega_panel(_simple: ParsedSimplePanel, _ref_lookup: dict[str, str]) -
 
 
 def _infer_settings(parsed: ParsedDashboard) -> dict[str, Any] | None:
+    """Infer dashboard-level settings (margins, sync options, panel titles)."""
     s = parsed.settings
     if s is None:
         return None
@@ -619,6 +897,7 @@ def _infer_settings(parsed: ParsedDashboard) -> dict[str, Any] | None:
 
 
 def _infer_time_range(parsed: ParsedDashboard) -> dict[str, str] | None:
+    """Infer dashboard time range from parsed from/to values."""
     if parsed.time_from is None and parsed.time_to is None:
         return None
     tr: dict[str, str] = {}
@@ -704,6 +983,10 @@ def _infer_panel(panel: ParsedPanel, ref_lookup: dict[str, str]) -> tuple[str, d
     if panel.panel_index is not None:
         wrapper['id'] = panel.panel_index
     wrapper['title'] = panel.title
+    if panel.hide_title is True:
+        wrapper['hide_title'] = True
+    if panel.description is not None and len(panel.description) > 0:
+        wrapper['description'] = panel.description
 
     if panel.grid is not None:
         g = panel.grid
@@ -733,14 +1016,7 @@ def _infer_panel(panel: ParsedPanel, ref_lookup: dict[str, str]) -> tuple[str, d
 
     # Simple panels
     if panel.simple is not None:
-        simple_builders: dict[str, Any] = {
-            'markdown': _infer_markdown_panel,
-            'search': _infer_search_panel,
-            'links': _infer_links_panel,
-            'image': _infer_image_panel,
-            'vega': _infer_vega_panel,
-        }
-        builder = simple_builders.get(panel.simple.panel_type)
+        builder = _SIMPLE_PANEL_BUILDERS.get(panel.simple.panel_type)
         if builder is not None:
             config = builder(panel.simple, ref_lookup)  # pyright: ignore[reportAny]
             return panel.simple.panel_type, config, wrapper
