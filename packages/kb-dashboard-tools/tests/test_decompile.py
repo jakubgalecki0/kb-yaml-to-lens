@@ -1879,7 +1879,7 @@ def _load_fixture(name: str) -> dict[str, Any]:
     ],
 )
 def test_decompile_real_dashboard_does_not_crash(fixture_name: str) -> None:
-    """Decompiling real elastic/integrations dashboards must not crash."""
+    """Decompiling real elastic/integrations dashboards must produce valid YAML."""
     dashboard = _load_fixture(fixture_name)
     result = decompile_dashboard(dashboard)
     dashboards = result['dashboards']
@@ -1887,6 +1887,11 @@ def test_decompile_real_dashboard_does_not_crash(fixture_name: str) -> None:
     assert isinstance(dashboards[0]['name'], str)
     assert len(dashboards[0]['name']) > 0
     assert len(dashboards[0]['panels']) > 0
+
+    # Validate the decompiled output against the Dashboard model —
+    # catches field name mismatches, wrong types, and missing required fields
+    config = DashboardConfig.model_validate(result)
+    assert len(config.dashboards) == 1
 
 
 @pytest.mark.parametrize(
