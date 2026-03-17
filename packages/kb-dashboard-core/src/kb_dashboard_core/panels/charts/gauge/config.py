@@ -14,7 +14,7 @@ class GaugeAppearance(BaseCfgModel):
     """Appearance configuration for gauge visualizations.
 
     Groups all visual styling options for gauge charts including shape, tick positioning,
-    labels, and palette configuration.
+    and label configuration.
     """
 
     shape: Literal['horizontal_bullet', 'vertical_bullet', 'arc', 'circle', 'semi_circle'] | None = Field(default=None)
@@ -28,9 +28,6 @@ class GaugeAppearance(BaseCfgModel):
 
     label_minor: str | None = Field(default=None)
     """Minor label text to display on the gauge."""
-
-    palette: ColorRangeMapping | None = Field(default=None)
-    """Range-based palette configuration for gauge thresholds. When set, enables palette color mode."""
 
 
 class GaugeTitlesAndText(BaseCfgModel):
@@ -60,6 +57,9 @@ class BaseGaugeChart(BaseCfgModel):
     type: Literal['gauge'] = Field(default='gauge')
     """The type of chart, which is 'gauge' for this visualization."""
 
+    color: ColorRangeMapping | None = Field(default=None)
+    """Range-based palette configuration for gauge thresholds. When set, enables palette color mode."""
+
     appearance: GaugeAppearance | None = Field(default=None)
     """Visual appearance configuration for the gauge."""
 
@@ -87,7 +87,7 @@ class LensGaugeChart(BaseChart, BaseGaugeChart):
           goal: 80
         ```
 
-        Gauge with custom appearance and palette:
+        Gauge with custom appearance and color:
         ```yaml
         lens:
           type: gauge
@@ -98,15 +98,15 @@ class LensGaugeChart(BaseChart, BaseGaugeChart):
           minimum: 0
           maximum: 1000
           goal: 500
+          color:
+            range_type: percent
+            thresholds:
+              - up_to: 0
+                color: "#00BF6F"
+              - up_to: 80
+                color: "#FFA500"
           appearance:
             shape: arc
-            palette:
-              range_type: percent
-              thresholds:
-                - up_to: 0
-                  color: "#00BF6F"
-                - up_to: 80
-                  color: "#FFA500"
         ```
     """
 

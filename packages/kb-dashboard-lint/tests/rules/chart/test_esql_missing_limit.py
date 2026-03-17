@@ -7,6 +7,7 @@ from dashboard_lint.types import Severity
 from kb_dashboard_core.dashboard.config import Dashboard
 from kb_dashboard_core.panels.charts.config import ESQLDatatablePanelConfig, ESQLMetricPanelConfig, ESQLPanel
 from kb_dashboard_core.panels.charts.esql.columns.config import ESQLMetric
+from kb_dashboard_core.panels.charts.metric.metrics import MetricESQLMetric
 
 
 @pytest.fixture
@@ -21,7 +22,7 @@ def dashboard_with_sort_desc_no_limit() -> Dashboard:
                     type='datatable',
                     query='FROM logs-* | STATS count = COUNT(*) BY host.name | SORT count DESC',
                     metrics=[ESQLMetric(field='count')],
-                    dimensions=[{'field': 'host.name'}],
+                    breakdowns=[{'field': 'host.name'}],
                 ),
             ),
         ],
@@ -40,7 +41,7 @@ def dashboard_with_sort_desc_and_limit() -> Dashboard:
                     type='datatable',
                     query='FROM logs-* | STATS count = COUNT(*) BY host.name | SORT count DESC | LIMIT 10',
                     metrics=[ESQLMetric(field='count')],
-                    dimensions=[{'field': 'host.name'}],
+                    breakdowns=[{'field': 'host.name'}],
                 ),
             ),
         ],
@@ -58,7 +59,7 @@ def dashboard_without_sort_desc() -> Dashboard:
                 esql=ESQLMetricPanelConfig(
                     type='metric',
                     query='FROM logs-* | STATS count = COUNT(*)',
-                    primary=ESQLMetric(field='count'),
+                    primary=MetricESQLMetric(field='count'),
                 ),
             ),
         ],

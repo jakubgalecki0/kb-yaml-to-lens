@@ -1,13 +1,13 @@
-import warnings
-from typing import Any, Literal, cast
+from typing import Literal
 
 from pydantic import Field, model_validator
 
-from kb_dashboard_core.panels.charts.base.config import BaseChart, ColorRangeMapping
+from kb_dashboard_core.panels.charts.base.config import BaseChart
 from kb_dashboard_core.panels.charts.esql.columns.config import ESQLBreakdownTypes, ESQLMetricTypes
 from kb_dashboard_core.panels.charts.lens.dimensions.config import LensDimensionTypes
 from kb_dashboard_core.panels.charts.lens.metrics.config import LensFormulaMetric, LensMetricTypes
 from kb_dashboard_core.panels.charts.lens.metrics.formula_parser import parse_formula
+from kb_dashboard_core.panels.charts.metric.metrics import ESQLMetricChartMetricTypes, LensMetricChartMetricTypes
 from kb_dashboard_core.shared.config import BaseCfgModel
 
 
@@ -72,53 +72,6 @@ class MetricSecondaryAppearance(BaseCfgModel):
     label: 'MetricSecondaryLabelAppearance | None' = Field(default=None)
     """Custom secondary label configuration."""
 
-    @model_validator(mode='before')
-    @classmethod
-    def _translate_deprecated_label_fields(cls, data: object) -> object:
-        if not isinstance(data, dict):
-            return data
-        normalized_data: dict[str, Any] = dict(cast('dict[str, Any]', data))
-        legacy_label_position = cast('object', normalized_data.pop('label_position', None))
-
-        label: object = normalized_data.get('label')
-        if isinstance(label, str):
-            normalized_data['label'] = {'text': label}
-            warnings.warn(
-                "Metric field 'appearance.secondary.label' as a string is deprecated, use 'appearance.secondary.label.text' instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            label = normalized_data['label']
-
-        if legacy_label_position is not None:
-            if label is None:
-                normalized_data['label'] = {'position': legacy_label_position}
-                warnings.warn(
-                    "Metric field 'appearance.secondary.label_position' is deprecated, use 'appearance.secondary.label.position' instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-            elif isinstance(label, dict) and 'position' not in label:
-                merged_label: dict[str, Any] = dict(cast('dict[str, Any]', label))
-                merged_label['position'] = legacy_label_position
-                normalized_data['label'] = merged_label
-                warnings.warn(
-                    "Metric field 'appearance.secondary.label_position' is deprecated, use 'appearance.secondary.label.position' instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-            else:
-                warnings.warn(
-                    (
-                        "Metric field 'appearance.secondary.label_position' is ignored because "
-                        "'appearance.secondary.label.position' is already set."
-                    ),
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-
-        return normalized_data
-
 
 class MetricSecondaryLabelAppearance(BaseCfgModel):
     """Secondary metric label appearance options."""
@@ -162,12 +115,6 @@ class BaseMetricChart(BaseChart):
 
     type: Literal['metric'] = Field(default='metric')
     """The type of chart, which is 'metric' for this visualization."""
-
-    color: ColorRangeMapping | None = Field(default=None)
-    """Formatting options for the chart color palette."""
-
-    apply_to: Literal['value', 'background'] = Field(default='background')
-    """Controls where metric colors are applied: value text or background."""
 
     appearance: MetricAppearance | None = Field(default=None)
     """Visual appearance configuration for the metric."""
@@ -238,10 +185,10 @@ class LensMetricChart(BaseMetricChart):
     data_view: str = Field(default=...)
     """The data view that determines the data for the metric chart."""
 
-    primary: LensMetricTypes = Field(default=...)
+    primary: LensMetricChartMetricTypes = Field(default=...)
     """The primary metric to display in the chart. This is the main value shown in the metric visualization."""
 
-    secondary: LensMetricTypes | None = Field(default=None)
+    secondary: LensMetricChartMetricTypes | None = Field(default=None)
     """An optional secondary metric to display alongside the primary metric."""
 
     maximum: LensMetricTypes | None = Field(default=None)
@@ -251,7 +198,7 @@ class LensMetricChart(BaseMetricChart):
     """An optional breakdown dimension to split metric values by category."""
 
     @staticmethod
-    def _metric_shifts(metric: LensMetricTypes) -> set[str | None]:
+    def _metric_shifts(metric: LensMetricChartMetricTypes | LensMetricTypes) -> set[str | None]:
         """Return all normalized time-shift values referenced by the metric."""
         if not isinstance(metric, LensFormulaMetric):
             return {None}
@@ -322,10 +269,10 @@ class ESQLMetricChart(BaseMetricChart):
         ```
     """
 
-    primary: ESQLMetricTypes = Field(default=...)
+    primary: ESQLMetricChartMetricTypes = Field(default=...)
     """The primary metric to display in the chart. This is the main value shown in the metric visualization."""
 
-    secondary: ESQLMetricTypes | None = Field(default=None)
+    secondary: ESQLMetricChartMetricTypes | None = Field(default=None)
     """An optional secondary metric to display alongside the primary metric."""
 
     maximum: ESQLMetricTypes | None = Field(default=None)

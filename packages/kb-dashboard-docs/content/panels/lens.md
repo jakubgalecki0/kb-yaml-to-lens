@@ -190,7 +190,6 @@ Visualizes proportions of categories using slices of a pie or a donut chart.
 | `metrics` | `LensMetricTypes \| list[LensMetricTypes]` object | A single metric or list of metrics that determine the size of each slice. See [Lens Metrics](#lens-metrics-primary-secondary-maximum-for-metric-metrics-for-pie). | N/A | Yes |
 | `breakdowns` | `list of LensBreakdownTypes` objects | One or more breakdowns that determine how the pie is sliced. See [Lens Dimensions](#lens-dimensions-breakdown-for-metric-breakdowns-for-pie). | N/A | Yes |
 | `appearance` | `PieChartAppearance` object | Formatting options for the chart appearance. See [Pie Chart Appearance](#pie-chart-appearance-appearance-field). | `None` | No |
-| `titles_and_text` | `PieTitlesAndText` object | Deprecated alias for slice labels/values. Prefer `appearance.categories` and `appearance.values`. | `None` | No |
 | `legend` | `PieLegend` object | Formatting options for the chart legend. See [Pie Legend](#pie-legend-legend-field). | `None` | No |
 | `color` | `ColorValueMapping` object | Formatting options for the chart color palette. See [Color Mapping](#color-mapping-color-field). | `None` | No |
 
@@ -514,7 +513,7 @@ These objects are used within the `LensPieChart` configuration.
 | `appearance.values.format` | `Literal['hide', 'integer', 'percent']` | How to display the value for each slice. | `percent` | No |
 | `appearance.values.decimal_places` | `integer` (0-10) | Number of decimal places for slice values. | `2` | No |
 
-`titles_and_text` is still accepted for backward compatibility, but it is deprecated and emits `DeprecationWarning`.
+`titles_and_text` is not accepted in `0.4.0`; use `appearance.categories` and `appearance.values` fields instead (or run `kb-dashboard upgrade`).
 
 ### Pie Legend (`legend` field)
 
