@@ -17,54 +17,25 @@ jobs:
       setup-commands: |
         command -v just >/dev/null 2>&1 || make install-just
         just all install
-        git clone --depth=1 https://github.com/elastic/integrations.git integrations
-        mkdir -p .audit/decompile/output
-
-        total=0; successes=0; failures=0
-        > .audit/decompile/errors.log
-        > .audit/decompile/failures.csv
-
-        echo "file,error_message" >> .audit/decompile/failures.csv
-
-        for f in integrations/packages/*/kibana/dashboard/*.json; do
-          [ -f "$f" ] || continue
-          total=$((total + 1))
-          rel="${f#integrations/}"
-          out=".audit/decompile/output/$(basename "$f" .json).yaml"
-          if output=$(uv run kb-dashboard decompile "$f" -o "$out" 2>&1); then
-            successes=$((successes + 1))
-          else
-            failures=$((failures + 1))
-            errmsg=$(printf '%s\n' "$output" | grep -v '^[[:space:]]*$' | tail -1 || true)
-            [ -z "$errmsg" ] && errmsg="UNKNOWN_ERROR_NO_MESSAGE (exit code non-zero, no output)"
-            echo "FAIL: $rel -- $errmsg" >> .audit/decompile/errors.log
-            printf '%s,"%s"\n' "\"$rel\"" "$errmsg" >> .audit/decompile/failures.csv
-          fi
-        done
-
-        rate=0
-        [ "$total" -gt 0 ] && rate=$((successes * 100 / total))
-
-        printf '{"total": %d, "successes": %d, "failures": %d, "success_rate": "%d%%"}\n' \
-          "$total" "$successes" "$failures" "$rate" > .audit/decompile/summary.json
-
-        echo "Decompiled $successes/$total dashboards ($rate% success, $failures failures)"
+        git clone --depth=1 --filter=blob:none --sparse https://github.com/elastic/integrations.git integrations
+        cd integrations && git sparse-checkout set 'packages/*/kibana/dashboard' && cd ..
+        uv run python scripts/audit-decompile.py integrations -o .audit/decompile
       additional-instructions: |
         You are auditing the kb-yaml-to-lens decompiler against all JSON dashboards in elastic/integrations.
         Setup has already cloned integrations and run `kb-dashboard decompile` on every dashboard.
 
         Artifacts:
-        - `.audit/decompile/summary.json` — total/success/failure counts
-        - `.audit/decompile/failures.csv` — each failure with file path and error message
-        - `.audit/decompile/errors.log` — one-line-per-failure log
-        - `.audit/decompile/output/` — successfully decompiled YAML files
+        - `.audit/decompile/summary.json` — total/success/failure counts and unique error types
+        - `.audit/decompile/errors_by_type.json` — errors grouped by type with counts and example files
+        - `.audit/decompile/failures.csv` — every failure with file, error_type, error_message
+        - `.audit/decompile/errors.log` — full tracebacks for each failure
 
         ## Mission
         Produce one high-signal issue that summarizes decompiler fuzz results.
 
         ## Required process
         - Read `summary.json` for the overview.
-        - Read `failures.csv` and group by error message.
+        - Read `errors_by_type.json` for grouped error analysis.
         - Classify each error group as: decompiler bug, unsupported feature, or malformed input.
         - Prioritize by count (most frequent first).
         - Do not open PRs; open a single issue only.
