@@ -5,6 +5,7 @@ producing dicts that can be validated into ``Dashboard`` instances.
 """
 
 import logging
+import re
 from typing import Any
 
 from kb_dashboard_core.dashboard.config import Dashboard
@@ -46,7 +47,7 @@ logger = logging.getLogger(__name__)
 # Chart-type classification sets (reused across functions)
 _XY_CHART_TYPES = frozenset({'line', 'bar', 'area'})
 _SINGULAR_METRIC_TYPES = frozenset({'gauge', 'tagcloud', 'waffle', 'mosaic'})
-_SINGULAR_DIM_TYPES = frozenset({'tagcloud', 'waffle', 'mosaic'})
+_SINGULAR_DIM_TYPES = frozenset({'metric', 'tagcloud', 'waffle', 'mosaic'})
 _PARTITION_TYPES = frozenset({'pie', 'treemap'})
 _PLURAL_METRIC_TYPES = frozenset({'pie', 'treemap', 'datatable', 'line', 'bar', 'area'})
 
@@ -179,7 +180,10 @@ def _build_dimension_dict(col: ParsedColumn) -> tuple[str, dict[str, Any]] | Non
         if col.source_field is not None:
             dim['field'] = col.source_field
         interval = col.params.get('interval')
-        if isinstance(interval, str) and interval != 'auto':
+        if isinstance(interval, str) and interval not in {'auto', ''}:
+            # Kibana stores bare units like 'm'; compiler expects '1m'
+            if re.match(r'^(ms|s|m|h|d|w|M|q|y)$', interval):
+                interval = f'1{interval}'
             dim['minimum_interval'] = interval
         return 'dimension', dim
 
@@ -553,7 +557,7 @@ def _assign_metrics_and_dimensions(
     elif chart_type in _SINGULAR_DIM_TYPES:
         merged = [*all_dimensions, *all_breakdowns]
         if len(merged) > 0:
-            if chart_type == 'waffle':
+            if chart_type in ('metric', 'waffle'):
                 chart['breakdown'] = merged[0]
             else:
                 chart['dimension'] = merged[0]
@@ -609,7 +613,9 @@ def _fill_required_defaults(
     if chart_type in _SINGULAR_METRIC_TYPES and 'metric' not in chart:
         chart['metric'] = default_metric
     if chart_type in _SINGULAR_DIM_TYPES:
-        if chart_type == 'waffle':
+        if chart_type == 'metric':
+            pass  # breakdown is optional for metric
+        elif chart_type == 'waffle':
             if 'breakdown' not in chart:
                 chart['breakdown'] = default_dim
         elif 'dimension' not in chart:
