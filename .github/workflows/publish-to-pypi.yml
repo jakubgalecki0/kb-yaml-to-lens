@@ -30,6 +30,9 @@ jobs:
       - name: Build kb-dashboard-lint
         shell: bash
         run: just lint build
+      - name: Build kb-dashboard-docs
+        shell: bash
+        run: just docs build-package
       - name: Build kb-dashboard-cli
         shell: bash
         run: just cli build
@@ -42,6 +45,9 @@ jobs:
       - name: Publish kb-dashboard-lint to PyPI
         shell: bash
         run: just lint publish
+      - name: Publish kb-dashboard-docs to PyPI
+        shell: bash
+        run: just docs publish
       - name: Publish kb-dashboard-cli to PyPI
         shell: bash
         run: just cli publish

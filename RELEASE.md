@@ -83,7 +83,8 @@ Follow [SemVer](https://semver.org/): `v{major}.{minor}.{patch}`
 just core publish    # Core first (no dependencies)
 just tools publish   # Tools depend on core
 just lint publish    # Lint depends on core
-just cli publish     # CLI depends on core + tools
+just docs publish    # Docs (bundled LLM content, CLI depends on it)
+just cli publish     # CLI depends on core + tools + docs
 
 # Docker (multi-arch - prefer re-running workflow)
 # Manual single-arch build for testing only:
