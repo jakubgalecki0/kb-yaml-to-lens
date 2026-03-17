@@ -49,7 +49,7 @@ See DEVELOPING.md above.
 
 ## CI/CD
 
-**Modifying workflows:** Claude cannot modify `.github/workflows/`. Create exact file in `github/` folder, request maintainer move to `.github/`.
+**Modifying workflows:** Claude cannot directly modify `.github/workflows/`. Propose workflow changes in the PR description and request a maintainer to apply them.
 
 ---
 
@@ -62,6 +62,7 @@ Read the component-specific AGENTS.md before working in that component:
 - **Lint (Python):** `packages/kb-dashboard-lint/` — follows same patterns as other Python packages (`just lint ci`)
 - **Tools (Python):** `packages/kb-dashboard-tools/` — follows same patterns as other Python packages (`just tools ci`)
 - **VS Code Extension (TypeScript):** [packages/vscode-extension/AGENTS.md](packages/vscode-extension/AGENTS.md)
+- **Docs (MkDocs):** [packages/kb-dashboard-docs/AGENTS.md](packages/kb-dashboard-docs/AGENTS.md)
 
 ---
 
@@ -75,6 +76,16 @@ Specialized guides for LLM-driven dashboard creation tasks:
 | [ES\|QL Language Reference](packages/kb-dashboard-docs/content/guides/esql-language-reference.md) | Writing ES\|QL queries for dashboard panels |
 | [Dashboard Decompiling Guide](packages/kb-dashboard-docs/content/guides/dashboard-decompiling-guide.md) | Converting existing Kibana JSON dashboards to YAML |
 | [Dashboard Style Guide](packages/kb-dashboard-docs/content/guides/dashboard-style-guide.md) | Layout, sizing, and design patterns |
+
+---
+
+## Explore Agent System
+
+Automated explore agents run against live Kibana instances via GitHub Actions to discover UI behavior and saved-object structure.
+
+- **Workflows:** `.github/workflows/explore-*.yml` — one per chart type and variant (Lens vs ES|QL)
+- **Agent guides:** `.github/agent-guides/explore-agents/` — getting-started, networking, response-format, and verification docs
+- **Triage:** Explore reports are triaged into GitHub issues; see the "Kibana Features that seem like they should exist but don't" section below before filing bugs
 
 ---
 
