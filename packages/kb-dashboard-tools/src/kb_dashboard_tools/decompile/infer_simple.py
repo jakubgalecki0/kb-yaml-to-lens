@@ -1,14 +1,13 @@
 """Simple panel builders for non-Lens panel types.
 
 Handles inference of markdown, search, image, links, and vega panels
-from parsed Kibana panel structures into YAML-ready config dicts.
+from typed Kibana panel models into YAML-ready config dicts.
 """
 
+from collections.abc import Callable
 from typing import Any
 
-from .parse import (
-    ParsedSimplePanel,
-)
+from .kbn_raw_models.panels.view import KbnBasePanel
 from .parse_shared import (
     as_dict,
     get_bool,
@@ -22,20 +21,16 @@ from .parse_shared import (
 __all__ = ['_SIMPLE_PANEL_BUILDERS']
 
 
-def _infer_markdown_panel(simple: ParsedSimplePanel, _ref_lookup: dict[str, str]) -> dict[str, Any]:
-    """Infer markdown panel config from parsed simple panel."""
+def _infer_markdown_panel(_panel: KbnBasePanel, ec: dict[str, Any], _ref_lookup: dict[str, str]) -> dict[str, Any]:
+    """Infer markdown panel config."""
     config: dict[str, Any] = {}
-    ec = simple.embeddable_config
-
-    content = get_str(ec, 'markdown')
-    if content is None:
-        params = get_nested(ec, 'savedVis', 'params')
-        if params is not None:
-            content = get_str(params, 'markdown')
-
-    config['content'] = content if content is not None else 'TODO(decompile): provide markdown content'
 
     params = get_nested(ec, 'savedVis', 'params')
+    content = get_str(ec, 'markdown')
+    if content is None and params is not None:
+        content = get_str(params, 'markdown')
+    config['content'] = content if content is not None else 'TODO(decompile): provide markdown content'
+
     if params is not None:
         font_size = get_int(params, 'fontSize')
         if font_size is not None:
@@ -47,28 +42,19 @@ def _infer_markdown_panel(simple: ParsedSimplePanel, _ref_lookup: dict[str, str]
     return config
 
 
-def _infer_search_panel(simple: ParsedSimplePanel, ref_lookup: dict[str, str]) -> dict[str, Any]:
-    """Infer search panel config from parsed simple panel."""
-    panel = simple.raw
-    saved_search_id = get_str(panel, 'savedSearchId')
-    if saved_search_id is not None:
-        return {'saved_search_id': saved_search_id}
-
-    ec = get_dict(panel, 'embeddableConfig')
-    if ec is not None:
-        ref_name = get_str(ec, 'savedSearchRefName')
-        if ref_name is not None:
-            resolved = get_str(ref_lookup, ref_name)
-            if resolved is not None:
-                return {'saved_search_id': resolved}
+def _infer_search_panel(panel: KbnBasePanel, ec: dict[str, Any], ref_lookup: dict[str, str]) -> dict[str, Any]:
+    """Infer search panel config."""
+    for ref_name in filter(None, [panel.panelRefName, get_str(ec, 'savedSearchRefName')]):
+        resolved = ref_lookup.get(ref_name)
+        if resolved is not None:
+            return {'saved_search_id': resolved}
 
     return {'saved_search_id': 'TODO_saved_search_id'}
 
 
-def _infer_image_panel(simple: ParsedSimplePanel, _ref_lookup: dict[str, str]) -> dict[str, Any]:
-    """Infer image panel config from parsed simple panel."""
+def _infer_image_panel(_panel: KbnBasePanel, ec: dict[str, Any], _ref_lookup: dict[str, str]) -> dict[str, Any]:
+    """Infer image panel config."""
     config: dict[str, Any] = {}
-    ec = simple.embeddable_config
 
     image_config = get_dict(ec, 'imageConfig')
     if image_config is not None:
@@ -106,11 +92,9 @@ def _build_link_common(raw_link: dict[str, Any]) -> dict[str, Any]:
     return item
 
 
-def _infer_links_panel(simple: ParsedSimplePanel, ref_lookup: dict[str, str]) -> dict[str, Any]:
-    """Infer links panel config from parsed simple panel."""
-    attrs = simple.embeddable_attributes
-    if not attrs:
-        attrs = get_dict(simple.embeddable_config, 'attributes') or {}
+def _infer_links_panel(_panel: KbnBasePanel, ec: dict[str, Any], ref_lookup: dict[str, str]) -> dict[str, Any]:
+    """Infer links panel config."""
+    attrs = as_dict(ec.get('attributes')) or {}
 
     config: dict[str, Any] = {}
     layout = get_str(attrs, 'layout')
@@ -163,12 +147,12 @@ def _infer_links_panel(simple: ParsedSimplePanel, ref_lookup: dict[str, str]) ->
     return config
 
 
-def _infer_vega_panel(_simple: ParsedSimplePanel, _ref_lookup: dict[str, str]) -> dict[str, Any]:
+def _infer_vega_panel(_panel: KbnBasePanel, _ec: dict[str, Any], _ref_lookup: dict[str, str]) -> dict[str, Any]:
     """Infer vega panel config (stub -- spec must be provided manually)."""
     return {'spec': {}}
 
 
-type _SimplePanelBuilder = Any  # Callable[[ParsedSimplePanel, dict[str, str]], dict[str, Any]]
+type _SimplePanelBuilder = Callable[[KbnBasePanel, dict[str, Any], dict[str, str]], dict[str, Any]]
 
 _SIMPLE_PANEL_BUILDERS: dict[str, _SimplePanelBuilder] = {
     'markdown': _infer_markdown_panel,
