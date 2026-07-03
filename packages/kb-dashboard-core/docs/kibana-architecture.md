@@ -514,12 +514,46 @@ Kibana 9.x introduces multiple datasource types:
           "esql": "FROM logs* | STATS count() BY @timestamp"
         },
         "columns": [...],
-        "timeField": "@timestamp"
+        "timeField": "@timestamp",
+        "indexPatternId": "ad-hoc-view-id"
       }
     }
   }
 }
 ```
+
+textBased panels carry the panel's source index pattern in a sibling
+`adHocDataViews` block, linked from the layer via `indexPatternId` and
+from the panel state via `internalReferences`:
+
+```json
+{
+  "internalReferences": [
+    {
+      "id": "ad-hoc-view-id",
+      "name": "indexpattern-datasource-layer-layer1",
+      "type": "index-pattern"
+    }
+  ],
+  "adHocDataViews": {
+    "ad-hoc-view-id": {
+      "id": "ad-hoc-view-id",
+      "name": "Ad-hoc",
+      "title": "logs*",
+      "timeFieldName": "@timestamp",
+      "allowHidden": false,
+      "allowNoIndex": false,
+      "fieldAttrs": {},
+      "fieldFormats": {},
+      "runtimeFieldMap": {},
+      "sourceFilters": []
+    }
+  }
+}
+```
+
+The compiler derives `title` from the leading `FROM`/`TS` clause of the
+panel's ES|QL query.
 
 ## Advanced Features
 

@@ -162,12 +162,19 @@ In your report, use this exact heading and table:
 When comparing Kibana-exported JSON against the compiler's view models,
 **ignore** these runtime artifacts — they are **never** bugs:
 
-- `adHocDataViews` / `indexPatternRefs`
+- `indexPatternRefs`
 - `migrationVersion` / `typeMigrationVersion` / `coreMigrationVersion`
 - Auto-generated `id`, `updatedAt`, `created_at`, `updated_at`, `version`, `namespaces`
 - `references[].id` values
 - JSON key ordering differences
 - `kibanaSavedObjectMeta.searchSourceJSON` default empty filters/query
+
+`adHocDataViews` is now emitted for ES|QL (textBased) panels — the
+compiler parses the index pattern from the leading `FROM`/`TS` clause and
+wires it via `internalReferences` and the textBased layer's
+`indexPatternId`. Differences in the `title`, `timeFieldName`, or the
+layer/`internalReferences` linkage are legitimate compiler bugs. Random
+`id` values inside `adHocDataViews` may still differ between exports.
 
 Only flag a difference as a bug if it affects a **functional setting** —
 something that changes how the panel looks or behaves.

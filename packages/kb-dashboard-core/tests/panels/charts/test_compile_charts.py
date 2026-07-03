@@ -1023,9 +1023,18 @@ class TestCompileESQLChartState:
             # Verify timeField exists and has default value
             assert layer.timeField == '@timestamp', f'Chart type {chart_config["type"]} missing or incorrect timeField'
 
-            # Verify layer_id is returned and adHocDataViews is empty
+            # Verify layer_id is returned and an adHocDataView is wired in
             assert layer_id in layers
-            assert state.adHocDataViews == {}
+            assert len(state.adHocDataViews) == 1
+            data_view_id, ad_hoc = next(iter(state.adHocDataViews.items()))
+            assert ad_hoc.id == data_view_id
+            assert ad_hoc.title == 'logs-*'
+            assert ad_hoc.timeFieldName == '@timestamp'
+            assert layer.index == data_view_id
+            assert len(state.internalReferences) == 1
+            assert state.internalReferences[0].id == data_view_id
+            assert state.internalReferences[0].type == 'index-pattern'
+            assert state.internalReferences[0].name == f'indexpattern-datasource-layer-{layer_id}'
 
     @pytest.mark.parametrize(
         ('chart_config', 'value_label'),
