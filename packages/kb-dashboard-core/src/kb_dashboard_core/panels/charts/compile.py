@@ -33,8 +33,8 @@ from kb_dashboard_core.panels.charts.tagcloud.config import ESQLTagcloudChart, L
 from kb_dashboard_core.panels.charts.treemap.compile import compile_esql_treemap_chart, compile_lens_treemap_chart
 from kb_dashboard_core.panels.charts.treemap.config import ESQLTreemapChart, LensTreemapChart
 from kb_dashboard_core.panels.charts.view import (
-    KbnAdHocDataView,
     KbnDataSourceState,
+    KbnDataViewSpec,
     KbnFormBasedDataSourceState,
     KbnFormBasedDataSourceStateLayer,
     KbnFormBasedDataSourceStateLayerById,
@@ -293,7 +293,7 @@ def compile_esql_chart_state(panel: ESQLPanel) -> tuple[KbnLensPanelState, str]:
         textBased=KbnTextBasedDataSourceState(layers=KbnTextBasedDataSourceStateLayerById(text_based_datasource_state_layer_by_id))
     )
 
-    ad_hoc_data_view = KbnAdHocDataView(
+    ad_hoc_data_view = KbnDataViewSpec(
         id=data_view_id,
         name=index_pattern,
         title=index_pattern,

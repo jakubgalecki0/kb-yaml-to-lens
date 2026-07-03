@@ -185,13 +185,8 @@ class KbnVisualizationTypeEnum(StrEnum):
     WAFFLE = 'lnsWaffle'
 
 
-class KbnAdHocDataView(BaseVwModel):
-    """Represents a single ad-hoc data view entry emitted for ES|QL (textBased) panels.
-
-    Ad-hoc data views are not saved objects; they are inlined on the Lens panel
-    state so that the panel can resolve its index pattern without referencing a
-    persisted data view. Kibana emits one entry per textBased layer.
-    """
+class KbnDataViewSpec(BaseVwModel):
+    """The serialized form of a Kibana data view (Kibana's ``DataViewSpec``)."""
 
     id: str
     type: Literal['esql'] = 'esql'
@@ -216,7 +211,7 @@ class KbnLensPanelState(BaseVwModel):
     filters: list[KbnFilter] = Field(...)
     datasourceStates: KbnDataSourceState = Field(...)
     internalReferences: list[KbnReference] = Field(...)
-    adHocDataViews: dict[str, KbnAdHocDataView] = Field(...)
+    adHocDataViews: dict[str, KbnDataViewSpec] = Field(...)
 
 
 class KbnLensPanelAttributes(BaseVwModel):
