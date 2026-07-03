@@ -122,7 +122,6 @@ class KbnTextBasedDataSourceStateLayer(BaseVwModel):
     allColumns: list[KbnESQLColumnTypes]
     timeField: str
     index: str
-    """Id of the adHocDataView for this layer's index pattern."""
 
 
 class KbnTextBasedDataSourceStateLayerById(RootModel[dict[str, KbnTextBasedDataSourceStateLayer]]):

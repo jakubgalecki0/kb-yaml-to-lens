@@ -172,7 +172,7 @@ When comparing Kibana-exported JSON against the compiler's view models,
 `adHocDataViews` is now emitted for ES|QL (textBased) panels — the
 compiler parses the index pattern from the leading `FROM`/`TS` clause and
 wires it via `internalReferences` and the textBased layer's
-`indexPatternId`. Differences in the `title`, `timeFieldName`, or the
+`index`. Differences in the `title`, `timeFieldName`, or the
 layer/`internalReferences` linkage are legitimate compiler bugs. Random
 `id` values inside `adHocDataViews` may still differ between exports.
 

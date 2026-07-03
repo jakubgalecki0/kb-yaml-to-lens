@@ -110,7 +110,7 @@ Do NOT flag them as bugs in explore workflow reports or triage issues:
 ## Saved Object content for ES|QL panels
 
 - The compiler emits an `adHocDataView` for each ES|QL (textBased) panel,
- wired in via `internalReferences` and the layer's `indexPatternId`. The
+ wired in via `internalReferences` and the textBased layer's `index`. The
  ad-hoc data view `title` is the source list parsed from the leading
  `FROM`/`TS` clause of the panel's ES|QL query. See
  `packages/kb-dashboard-core/src/kb_dashboard_core/queries/esql_source.py`.

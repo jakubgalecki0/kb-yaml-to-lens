@@ -515,7 +515,7 @@ Kibana 9.x introduces multiple datasource types:
         },
         "columns": [...],
         "timeField": "@timestamp",
-        "indexPatternId": "ad-hoc-view-id"
+        "index": "ad-hoc-view-id"
       }
     }
   }
@@ -523,7 +523,7 @@ Kibana 9.x introduces multiple datasource types:
 ```
 
 textBased panels carry the panel's source index pattern in a sibling
-`adHocDataViews` block, linked from the layer via `indexPatternId` and
+`adHocDataViews` block, linked from the layer via `index` and
 from the panel state via `internalReferences`:
 
 ```json
