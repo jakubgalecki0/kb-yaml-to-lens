@@ -84,10 +84,14 @@ def extract_esql_index_pattern(query: str) -> str:
         suitable for use as an adHocDataView ``title``.
 
     Raises:
-        ValueError: If no ``FROM``/``TS`` source command is present in the query,
+        ValueError: If the query is empty, has no ``FROM``/``TS`` source command,
             or the source command has no sources.
 
     """
+    if not query.strip():
+        msg = 'ES|QL query is empty'
+        raise ValueError(msg)
+
     try:
         ast = _PARSER.parse(query)
     except FailedParse as exc:

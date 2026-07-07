@@ -169,12 +169,12 @@ When comparing Kibana-exported JSON against the compiler's view models,
 - JSON key ordering differences
 - `kibanaSavedObjectMeta.searchSourceJSON` default empty filters/query
 
-`adHocDataViews` is now emitted for ES|QL (textBased) panels — the
-compiler parses the index pattern from the leading `FROM`/`TS` clause and
-wires it via `internalReferences` and the textBased layer's
-`index`. Differences in the `title`, `timeFieldName`, or the
-layer/`internalReferences` linkage are legitimate compiler bugs. Random
-`id` values inside `adHocDataViews` may still differ between exports.
+For ES|QL (textBased) panels, `adHocDataViews` is emitted with an index
+pattern parsed from the leading `FROM`/`TS` clause, wired via
+`internalReferences` and the textBased layer's `index`. Differences in the
+`title`, `timeFieldName`, or the layer/`internalReferences` linkage are
+legitimate compiler bugs. Random `id` values inside `adHocDataViews` may
+still differ between exports.
 
 Only flag a difference as a bug if it affects a **functional setting** —
 something that changes how the panel looks or behaves.

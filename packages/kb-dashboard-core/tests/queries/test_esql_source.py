@@ -142,6 +142,13 @@ def test_real_integrations_sources(query: str, expected: str) -> None:
     assert extract_esql_index_pattern(query) == expected
 
 
+@pytest.mark.parametrize('query', ['', '   ', '\n\t  \n'])
+def test_empty_query_raises(query: str) -> None:
+    """An empty or whitespace-only query raises a distinct 'query is empty' error."""
+    with pytest.raises(ValueError, match='ES\\|QL query is empty'):
+        extract_esql_index_pattern(query)
+
+
 def test_missing_source_raises() -> None:
     """Queries without a leading FROM/TS clause raise a ValueError."""
     with pytest.raises(ValueError, match='missing a FROM/TS source command'):

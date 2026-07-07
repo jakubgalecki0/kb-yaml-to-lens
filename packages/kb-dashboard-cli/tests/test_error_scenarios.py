@@ -329,12 +329,12 @@ dashboards:
         assert error == snapshot("1 validation error in invalid-chart-type.yaml:\n  • dashboards[0].panels[0].esql: Unknown type 'invalid_type'. Valid types: 'metric', 'gauge', 'heatmap', 'pie', 'line', 'bar', 'area', 'tagcloud', 'datatable', 'mosaic', 'treemap', 'waffle'")  # noqa: E501
         # fmt: on
 
-    # todo: why would we return missing a FROM/TS source command when the query is empty?
     def test_empty_esql_query_list(self, tmp_path: Path) -> None:
-        """Test that empty ESQL queries are rejected with a clear error.
+        """Test that an empty ESQL query is rejected with a clear "query is empty" error.
 
-        Compilation needs a FROM/TS source command to extract the index
-        pattern for the panel's adHocDataView.
+        An empty query (e.g. ``query: []``) normalizes to an empty string, so the
+        error should say the query is empty rather than that a FROM/TS source
+        command is missing.
         """
         yaml_file = tmp_path / 'empty-query.yaml'
         yaml_file.write_text("""
@@ -353,7 +353,7 @@ dashboards:
 """)
         _json_lines, _dashboards, error = compile_yaml_to_json(yaml_file)
         assert error is not None
-        assert 'missing a FROM/TS source command' in error
+        assert 'ES|QL query is empty' in error
 
 
 class TestStructuralIssues:
