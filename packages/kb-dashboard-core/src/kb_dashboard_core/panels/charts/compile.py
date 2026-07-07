@@ -34,6 +34,7 @@ from kb_dashboard_core.panels.charts.treemap.compile import compile_esql_treemap
 from kb_dashboard_core.panels.charts.treemap.config import ESQLTreemapChart, LensTreemapChart
 from kb_dashboard_core.panels.charts.view import (
     KbnDataSourceState,
+    KbnDataViewSpec,
     KbnFormBasedDataSourceState,
     KbnFormBasedDataSourceStateLayer,
     KbnFormBasedDataSourceStateLayerById,
@@ -62,8 +63,10 @@ from kb_dashboard_core.panels.charts.xy.config import (
 from kb_dashboard_core.panels.charts.xy.view import KbnXYVisualizationState
 from kb_dashboard_core.panels.drilldowns import compile_drilldowns
 from kb_dashboard_core.queries.compile import compile_esql_query, compile_nonesql_query
+from kb_dashboard_core.queries.esql_source import extract_esql_index_pattern
 from kb_dashboard_core.queries.types import LegacyQueryTypes
 from kb_dashboard_core.queries.view import KbnQuery
+from kb_dashboard_core.shared.config import stable_id_generator
 from kb_dashboard_core.shared.view import KbnReference
 
 if TYPE_CHECKING:
@@ -275,15 +278,26 @@ def compile_esql_chart_state(panel: ESQLPanel) -> tuple[KbnLensPanelState, str]:
             msg = f'Unsupported ESQL chart type: {type(chart)}'
             raise NotImplementedError(msg)  # pyright: ignore[reportUnreachable]
 
+    index_pattern = extract_esql_index_pattern(chart.query.root)
+    data_view_id = stable_id_generator(['adhoc-data-view', layer_id, index_pattern, panel.esql.time_field])
+
     text_based_datasource_state_layer_by_id[layer_id] = KbnTextBasedDataSourceStateLayer(
         query=compile_esql_query(chart.query),
         columns=esql_columns,
         allColumns=esql_columns,
         timeField=panel.esql.time_field,
+        index=data_view_id,
     )
 
     datasource_states = KbnDataSourceState(
         textBased=KbnTextBasedDataSourceState(layers=KbnTextBasedDataSourceStateLayerById(text_based_datasource_state_layer_by_id))
+    )
+
+    ad_hoc_data_view = KbnDataViewSpec(
+        id=data_view_id,
+        name=index_pattern,
+        title=index_pattern,
+        timeFieldName=panel.esql.time_field,
     )
 
     panel_state = KbnLensPanelState(
@@ -291,8 +305,14 @@ def compile_esql_chart_state(panel: ESQLPanel) -> tuple[KbnLensPanelState, str]:
         query=compile_esql_query(chart.query),
         filters=[],
         datasourceStates=datasource_states,
-        internalReferences=[],
-        adHocDataViews={},
+        internalReferences=[
+            KbnReference(
+                id=data_view_id,
+                name=f'indexpattern-datasource-layer-{layer_id}',
+                type='index-pattern',
+            )
+        ],
+        adHocDataViews={data_view_id: ad_hoc_data_view},
     )
 
     return panel_state, layer_id

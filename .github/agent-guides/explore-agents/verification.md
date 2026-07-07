@@ -162,12 +162,29 @@ In your report, use this exact heading and table:
 When comparing Kibana-exported JSON against the compiler's view models,
 **ignore** these runtime artifacts — they are **never** bugs:
 
-- `adHocDataViews` / `indexPatternRefs`
+- `indexPatternRefs`
 - `migrationVersion` / `typeMigrationVersion` / `coreMigrationVersion`
 - Auto-generated `id`, `updatedAt`, `created_at`, `updated_at`, `version`, `namespaces`
 - `references[].id` values
 - JSON key ordering differences
 - `kibanaSavedObjectMeta.searchSourceJSON` default empty filters/query
+
+For ES|QL (textBased) panels, `adHocDataViews` is emitted with an index
+pattern parsed from the leading `FROM`/`TS` clause, wired via
+`internalReferences` and the textBased layer's `index`. For this entry,
+`name` and `title` are both set to the index pattern and must match each
+other — a mismatch, or a `type` other than `esql`, is a legitimate compiler
+bug. Differences in `timeFieldName` or the layer/`internalReferences`
+linkage are also legitimate bugs. Random `id` values inside
+`adHocDataViews` may still differ between exports.
+
+Note: Kibana can also generate an `adHocDataViews` entry for a *filter*
+that references an index without a saved data view, on an ordinary
+`formBased` panel (unrelated to ES|QL). That entry is not linked via a
+textBased layer's `index`, and Kibana may give it an arbitrary `name`
+(e.g. `Ad-hoc`) distinct from its `title`. Don't use that mechanism as a
+reference for the ES|QL `adHocDataViews` fields above — they're generated
+by different Kibana code paths with different naming rules.
 
 Only flag a difference as a bug if it affects a **functional setting** —
 something that changes how the panel looks or behaves.

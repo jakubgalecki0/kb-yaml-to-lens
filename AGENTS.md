@@ -107,10 +107,13 @@ Do NOT flag them as bugs in explore workflow reports or triage issues:
   `continuity` in its palette editor UI; the compiler hardcodes it
   to `above` which matches Kibana's own default behavior
 
-## Saved Object content that seems like it matters but doesn't
+## Saved Object content for ES|QL panels
 
-- We do not need adhocdataviews and we do not need to parse ES|QL queries
-  to get an index name that we can stringify.
+- The compiler emits an `adHocDataView` for each ES|QL (textBased) panel,
+ wired in via `internalReferences` and the textBased layer's `index`. The
+ ad-hoc data view `title` is the source list parsed from the leading
+ `FROM`/`TS` clause of the panel's ES|QL query. See
+ `packages/kb-dashboard-core/src/kb_dashboard_core/queries/esql_source.py`.
 
 ---
 

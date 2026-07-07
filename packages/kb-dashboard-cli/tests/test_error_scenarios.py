@@ -330,7 +330,12 @@ dashboards:
         # fmt: on
 
     def test_empty_esql_query_list(self, tmp_path: Path) -> None:
-        """Test that empty ESQL query lists are accepted."""
+        """Test that an empty ESQL query is rejected with a clear "query is empty" error.
+
+        An empty query (e.g. ``query: []``) normalizes to an empty string, so the
+        error should say the query is empty rather than that a FROM/TS source
+        command is missing.
+        """
         yaml_file = tmp_path / 'empty-query.yaml'
         yaml_file.write_text("""
 dashboards:
@@ -346,10 +351,9 @@ dashboards:
             id: count_id
           query: []
 """)
-        json_lines, _dashboards, error = compile_yaml_to_json(yaml_file)
-        # Empty query lists are accepted (no minimum length validation)
-        assert error is None
-        assert len(json_lines) == 1
+        _json_lines, _dashboards, error = compile_yaml_to_json(yaml_file)
+        assert error is not None
+        assert 'ES|QL query is empty' in error
 
 
 class TestStructuralIssues:

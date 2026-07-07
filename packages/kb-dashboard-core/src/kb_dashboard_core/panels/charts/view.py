@@ -121,6 +121,7 @@ class KbnTextBasedDataSourceStateLayer(BaseVwModel):
     columns: list[KbnESQLColumnTypes]
     allColumns: list[KbnESQLColumnTypes]
     timeField: str
+    index: str
 
 
 class KbnTextBasedDataSourceStateLayerById(RootModel[dict[str, KbnTextBasedDataSourceStateLayer]]):
@@ -183,6 +184,24 @@ class KbnVisualizationTypeEnum(StrEnum):
     WAFFLE = 'lnsWaffle'
 
 
+class KbnDataViewSpec(BaseVwModel):
+    """The serialized form of a Kibana data view (Kibana's ``DataViewSpec``)."""
+
+    id: str
+    type: Literal['esql'] = 'esql'
+    name: str
+    """The index pattern name (e.g. ``'metrics-postgresqlreceiver.otel-*'``)."""
+    title: str
+    """The comma-joined index pattern (e.g. ``'logs-*'``)."""
+    timeFieldName: str
+    allowHidden: bool = False
+    allowNoIndex: bool = False
+    fieldAttrs: dict[str, Any] = Field(default_factory=dict)
+    fieldFormats: dict[str, Any] = Field(default_factory=dict)
+    runtimeFieldMap: dict[str, Any] = Field(default_factory=dict)
+    sourceFilters: list[Any] = Field(default_factory=list)
+
+
 class KbnLensPanelState(BaseVwModel):
     """Represents the 'state' object within a Lens panel in the Kibana JSON structure."""
 
@@ -190,8 +209,8 @@ class KbnLensPanelState(BaseVwModel):
     query: KbnQuery | KbnESQLQuery = Field(...)
     filters: list[KbnFilter] = Field(...)
     datasourceStates: KbnDataSourceState = Field(...)
-    internalReferences: list[Any] = Field(...)
-    adHocDataViews: dict[str, Any] = Field(...)
+    internalReferences: list[KbnReference] = Field(...)
+    adHocDataViews: dict[str, KbnDataViewSpec] = Field(...)
 
 
 class KbnLensPanelAttributes(BaseVwModel):

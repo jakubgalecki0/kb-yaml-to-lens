@@ -10,9 +10,11 @@ Commands are organized into separate modules:
 - cli_context: Context object for sharing clients across commands
 """
 
+import contextlib
 import logging
 import os
 import sys
+import threading
 from importlib.metadata import PackageNotFoundError, version
 
 import rich_click as click
@@ -111,5 +113,34 @@ cli.add_command(extract_sample_data_command, name='extract-sample-data')
 cli.add_command(docs)
 
 
+def main() -> None:
+    """Run the CLI on a worker thread with a larger stack.
+
+    TatSu's ES|QL grammar parser can recurse deep enough, in some environments,
+    to overflow the interpreter's default thread stack (observed as an
+    unrecoverable "Cannot recover from stack overflow" crash rather than a
+    catchable RecursionError). Running on a dedicated thread with a much
+    larger stack tolerates that safely.
+    """
+    exit_code = 0
+
+    def _run() -> None:
+        nonlocal exit_code
+        sys.setrecursionlimit(5000)
+        try:
+            cli()
+        except SystemExit as exc:
+            exit_code = exc.code if isinstance(exc.code, int) else (0 if exc.code is None else 1)
+
+    with contextlib.suppress(ValueError, RuntimeError):
+        # Unsupported on some platforms; falls back to the default stack size.
+        threading.stack_size(512 * 1024 * 1024)
+
+    worker = threading.Thread(target=_run)
+    worker.start()
+    worker.join()
+    sys.exit(exit_code)
+
+
 if __name__ == '__main__':
-    cli()
+    main()
