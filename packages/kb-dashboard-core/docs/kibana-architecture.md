@@ -538,7 +538,8 @@ from the panel state via `internalReferences`:
   "adHocDataViews": {
     "ad-hoc-view-id": {
       "id": "ad-hoc-view-id",
-      "name": "Ad-hoc",
+      "type": "esql",
+      "name": "logs*",
       "title": "logs*",
       "timeFieldName": "@timestamp",
       "allowHidden": false,
